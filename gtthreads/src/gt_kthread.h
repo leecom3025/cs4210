@@ -30,6 +30,9 @@ typedef struct __kthread_context
 	sigjmp_buf kthread_env; /* kthread's env to jump to (when done scheduling) */
 
 	kthread_runqueue_t krunqueue;
+	/* for gt_yield() */
+	unsigned int yid; 
+	
 } kthread_context_t;
 
 

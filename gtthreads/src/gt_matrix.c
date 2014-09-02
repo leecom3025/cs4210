@@ -12,6 +12,7 @@
 
 #include "gt_include.h"
 
+#define GT_THREADS 0
 
 #define ROWS 512
 #define COLS ROWS
@@ -118,6 +119,7 @@ static void * uthread_mulmat(void *p)
 				ptr->_C->m[i][j] += ptr->_A->m[i][k] * ptr->_B->m[k][j];
 
 #ifdef GT_THREADS
+	gt_yield();
 	fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) finished (TIME : %lu s and %lu us)",
 			ptr->tid, ptr->gid, cpuid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
 #else

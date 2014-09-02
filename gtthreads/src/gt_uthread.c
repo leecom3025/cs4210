@@ -14,7 +14,7 @@
 /**********************************************************************/
 /** DECLARATIONS **/
 /**********************************************************************/
-
+extern void gt_yield();
 
 /**********************************************************************/
 /* kthread runqueue and env */
@@ -35,7 +35,33 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 
 /**********************************************************************/
 /** DEFNITIONS **/
+/* 
+Implement a	library function for voluntary preemption (gt_yield()).
+When a user-level thread executes this function, it should yield the CPU to the scheduler,
+which then schedules the next thread (per its scheduling scheme).	
+On voluntary preemption, the thread	should be charged credits only for the acctual CPU cycles used.
+*/
 /**********************************************************************/
+
+extern void gt_yield()
+{
+
+#if 1
+	printf("gt_yield is called!\n");
+#endif	
+  kthread_block_signal(SIGVTALRM);
+  kthread_block_signal(SIGUSR1);
+  kthread_context_t *k_ctx;
+  k_ctx = kthread_cpu_map[kthread_apic_id()];
+  k_ctx->yid = 1;
+  struct itimerval schd; 
+  schd.it_interval.tv_sec = schd.it_interval.tv_usec = schd.it_value.tv_sec = 0;
+  schd.it_value.tv_usec = 10000;
+  printf("%s, %s, %s\n", schd.it_interval.tv_sec, schd.it_interval.tv_usec, schd.it_value.tv_sec);
+  setitimer(ITIMER_VIRTUAL, &schd, NULL);
+  kthread_unblock_signal(SIGVTALRM);
+  kthread_unblock_signal(SIGUSR1);
+}
 
 /**********************************************************************/
 /* uthread scheduling */
@@ -115,8 +141,8 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	uthread_struct_t *u_obj;
 
 	/* Signals used for cpu_thread scheduling */
-	// kthread_block_signal(SIGVTALRM);
-	// kthread_block_signal(SIGUSR1);
+	kthread_block_signal(SIGVTALRM);
+	kthread_block_signal(SIGUSR1);
 
 #if 0
 	fprintf(stderr, "uthread_schedule invoked !!\n");
@@ -236,8 +262,8 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	uthread_struct_t *u_new;
 
 	/* Signals used for cpu_thread scheduling */
-	// kthread_block_signal(SIGVTALRM);
-	// kthread_block_signal(SIGUSR1);
+	kthread_block_signal(SIGVTALRM);
+	kthread_block_signal(SIGUSR1);
 
 	/* create a new uthread structure and fill it */
 	if(!(u_new = (uthread_struct_t *)MALLOCZ_SAFE(sizeof(uthread_struct_t))))
@@ -282,8 +308,8 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	/* WARNING : DONOT USE u_new WITHOUT A LOCK, ONCE IT IS ENQUEUED. */
 
 	/* Resume with the old thread (with all signals enabled) */
-	// kthread_unblock_signal(SIGVTALRM);
-	// kthread_unblock_signal(SIGUSR1);
+	kthread_unblock_signal(SIGVTALRM);
+	kthread_unblock_signal(SIGUSR1);
 
 	return 0;
 }
