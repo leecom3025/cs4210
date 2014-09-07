@@ -14,11 +14,11 @@
 
 #define GT_THREADS 0
 
-#define ROWS 512
+#define ROWS 256
 #define COLS ROWS
 #define SIZE COLS
 
-#define NUM_CPUS 2
+#define NUM_CPUS 4
 #define NUM_GROUPS NUM_CPUS
 #define PER_GROUP_COLS (SIZE/NUM_GROUPS)
 
@@ -50,6 +50,9 @@ typedef struct __uthread_arg
 	unsigned int gid;
 	int start_row; /* start_row -> (start_row + PER_THREAD_ROWS) */
 	int start_col; /* start_col -> (start_col + PER_GROUP_COLS) */
+
+	int end_row;
+	int end_col;
 	
 }uthread_arg_t;
 	
@@ -72,18 +75,18 @@ static void generate_matrix(matrix_t *mat, int val)
 static void print_matrix(matrix_t *mat)
 {
 #if 1
-	int i, j, value;
+	// int i, j, value;
 
-	for(i=0;i<SIZE;i++)
-	{
-		for(j=0;j<SIZE;j++) 
-		{
-			if (value != mat->m[i][j]) {
-				value = mat->m[i][j];
-				printf("\nVALUE IS %d\n", value);
-			}
-		}
-	}
+	// for(i=0;i<mat->end_row;i++)
+	// {
+	// 	for(j=0;j<mat->end_col;j++) 
+	// 	{
+	// 		if (value != mat->m[i][j]) {
+	// 			value = mat->m[i][j];
+	// 			printf("\nVALUE IS %d\n", value);
+	// 		}
+	// 	}
+	// }
 
 #else
 	int i, j;
@@ -111,14 +114,14 @@ static void * uthread_mulmat(void *p)
 	i=0; j= 0; k=0;
 
 	start_row = ptr->start_row;
-	end_row = (ptr->start_row + PER_THREAD_ROWS);
+	end_row = ptr->end_row; // (ptr->start_row + PER_THREAD_ROWS);
 
 #ifdef GT_GROUP_SPLIT
 	start_col = ptr->start_col;
 	end_col = (ptr->start_col + PER_THREAD_ROWS);
 #else
 	start_col = 0;
-	end_col = SIZE;
+	end_col = ptr->end_col; //SIZE;
 #endif
 
 #ifdef GT_THREADS
@@ -158,11 +161,15 @@ static void init_matrices()
 	return;
 }
  
-
+int get_credit(int inx) 
+{// gives credit 
+	return 25 + ((inx /32) * 25);
+}
 
 
 uthread_arg_t uargs[NUM_THREADS];
 uthread_t utids[NUM_THREADS];
+int sizes[4] = {32, 64, 128, 256};
 
 int main()
 {
@@ -187,13 +194,14 @@ int main()
 
 		uarg->gid = (inx % NUM_GROUPS);
 
-		uarg->start_row = (inx * PER_THREAD_ROWS);
+		uarg->start_row = 0; //(inx * PER_THREAD_ROWS);
 #ifdef GT_GROUP_SPLIT
 		/* Wanted to split the columns by groups !!! */
 		uarg->start_col = (uarg->gid * PER_GROUP_COLS);
 #endif
+		uarg->end_row = sizes[uarg->gid];
 
-		uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, 25);
+		uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, 25 + uarg->gid * 25);
 	}
 
 	gtthread_app_exit();

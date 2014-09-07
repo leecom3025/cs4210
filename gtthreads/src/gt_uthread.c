@@ -313,9 +313,9 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 
 	struct itimerval curr, nxt;
 	getitimer(ITIMER_VIRTUAL, &curr);
-	printf("\nCredits left : %d\nDefault : %d", u_obj->credits.credit_left, KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000);
+	printf("\nCredits left : %d\nDefault : %d\n", u_obj->credits.credit_left, u_obj->credits.def_credit);
 
-	if(u_obj->credits.credit_left < 25){ // KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) 
+	if(u_obj->credits.credit_left < 25)// KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) 
 	{
 		if(u_obj->credits.credit_left < 25) 
 		{
@@ -400,7 +400,7 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	u_new->uthread_gid = u_gid;
 	u_new->uthread_func = u_func;
 	u_new->uthread_arg = u_arg;
-	u_new->credits.credit = u_new->credits.credit_left = credits;
+	u_new->credits.credit = u_new->credits.credit_left = u_new->credits.def_credit = credits;
 	u_new->credits.usec_per_core = malloc(sizeof(int) * GT_MAX_KTHREADS);
 
 	/* Allocate new stack for uthread */

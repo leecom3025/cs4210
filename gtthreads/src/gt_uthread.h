@@ -15,6 +15,7 @@ typedef unsigned int uthread_group_t;
 
 typedef struct credit_sch 
 {
+	int def_credit;
 	int credit;
 	int credit_left;
 	int used_sec;
