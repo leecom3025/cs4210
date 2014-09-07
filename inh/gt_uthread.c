@@ -144,6 +144,7 @@ timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y)
   result->tv_usec = x->tv_usec - y->tv_usec;
 
   /* Return 1 if result is negative. */
+
   return x->tv_sec < y->tv_sec;
 }
 extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kthread_runqueue_t *))
@@ -191,11 +192,13 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	{
 	  gettimeofday(&now, NULL);
 	  timeval_subtract(&results_timeval, &now, &u_obj->last_updated);
+
 	  fprintf(stderr, "usec before %d \n", u_obj->usec);
 	  u_obj->usec += results_timeval.tv_sec * 1000000 + results_timeval.tv_usec;
 	  fprintf(stderr, "usec after %d \n", u_obj->usec);
+
 	  results = results_timeval.tv_sec * 1000 + results_timeval.tv_usec/1000;
-	  u_obj->usec_per_core[kthread_apic_id()] +=results_timeval.tv_sec * 1000000 + results_timeval.tv_usec;;
+	  u_obj->usec_per_core[kthread_apic_id()] +=results_timeval.tv_sec * 1000000 + results_timeval.tv_usec;
 	  u_obj->credits_remaining -=results;
 	  fprintf(stderr, "used %d\n adn now %d remaining", results, u_obj->credits_remaining);
 	  

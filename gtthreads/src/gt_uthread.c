@@ -16,8 +16,8 @@
 /** DECLARATIONS **/
 /**********************************************************************/
 extern void gt_yield();
-static void calcuate(uthread_struct_t *u_obj);
-
+static void calcuate(uthread_struct_t **u_obj);
+static void u_update(uthread_struct_t **u_obj, struct timeval curr, struct timeval ncurr, struct timeval up);
 /**********************************************************************/
 /* kthread runqueue and env */
 
@@ -44,6 +44,7 @@ which then schedules the next thread (per its scheduling scheme).
 On voluntary preemption, the thread	should be charged credits only for the acctual CPU cycles used.
 */
 /**********************************************************************/
+#define MILL 1000000
 
 extern void gt_yield()
 {
@@ -59,56 +60,65 @@ extern void gt_yield()
   	k_ctx = kthread_cpu_map[kthread_apic_id()];
   	k_ctx->yid = 1;
   	
-  	schd.it_interval.tv_sec = schd.it_interval.tv_usec = schd.it_value.tv_sec = 0;
+  	schd.it_interval.tv_sec = 0;
+  	schd.it_interval.tv_usec = 0;
+  	schd.it_value.tv_sec = 0;
   	schd.it_value.tv_usec = 10000;
 
-#if U_DEBUG
-  	printf("\n%s, %s, %s\n", schd.it_interval.tv_sec, schd.it_interval.tv_usec, schd.it_value.tv_sec);
-#endif 
+// #if U_DEBUG
+  	// printf("\n%s, %s, %s\n", schd.it_interval.tv_sec, schd.it_interval.tv_usec, schd.it_value.tv_sec);
+// #endif 
 
   	setitimer(ITIMER_VIRTUAL, &schd, NULL);
 	kthread_unblock_signal(SIGVTALRM);
   	kthread_unblock_signal(SIGUSR1);
 }
 
-static int uthread_init(uthread_struct_t *u_obj)
+static void u_update(uthread_struct_t **u, struct timeval curr, struct timeval ncurr, struct timeval up)
 {
-#define MILL 1000000
-	struct timeval curr, ncurr, up;
-
-	up = (&u_obj->credits)->updated;
-	gettimeofday(&curr, NULL);
-
-	if(curr->tv_usec < up->tv_usec)
-	{
-		up->tv_usec = up->tv_usec - (MILL * ((curr->tv_usec - up->tv_usec)/(MILL+1)));
-		up->tv_sec = up->tv_sec + ((curr->tv_usec - up->tv_usec)/MILL);
-	}
-
-	if(curr->tv_usec > MILL + up->tv_usec)
-	{
-		up->tv_usec += (curr->tv_usec - up->tv_usec);
-		up->tv_sec -= (curr->tv_usec - up->tv_usec);
-	}
-
-	ncurr->tv_sec = curr->tv_sec - up->tv_sec;
-	ncurr->tv_usec = curr->tv_usec - up->tv_usec;
-
+	uthread_struct_t *u_obj = *u;
 	#if U_DEBUG
-		printf("%s %d\n", "u_obj before:", u_obj.credits->used_sec);
+		printf("%s %d\n", "u_obj before:", u_obj->credits.used_sec);
 	#endif	
 	
-	u_obj.credits->used_sec += ncurr->tv_usec + (ncurr->tv_sec * MILL);
+	u_obj->credits.used_sec += ncurr.tv_usec + (ncurr.tv_sec * MILL);
 
 	#if U_DEBUG
-		printf("%s %d\n", "u_obj after: ", u_obj.credits->used_sec);
+		printf("%s %d\n", "u_obj after: ", u_obj->credits.used_sec);
 	#endif
 
-	  // results = results_timeval.tv_sec * 1000 + results_timeval.tv_usec/1000;
-	  // u_obj->usec_per_core[kthread_apic_id()] +=results_timeval.tv_sec * 1000000 + results_timeval.tv_usec;;
-	  // u_obj->credits_remaining -=results;
-	  // fprintf(stderr, "used %d\n adn now %d remaining", results, u_obj->credits_remaining);
-	  
+	u_obj->credits.usec_per_core[kthread_apic_id()] += ncurr.tv_sec * MILL + ncurr.tv_usec;
+	u_obj->credits.credit_left -= ncurr.tv_sec * 1000 + (ncurr.tv_usec/1000);
+
+	*u = u_obj;
+}
+
+static void calculate(uthread_struct_t **u)
+{
+	printf("\nHERRRRR\n");
+	uthread_struct_t *u_obj = *u;
+	struct timeval curr, ncurr, up;
+
+	up = ((&u_obj->credits)->updated);
+	gettimeofday(&curr, NULL);
+
+	if(curr.tv_usec < up.tv_usec)
+	{
+		up.tv_usec = up.tv_usec - (MILL * ((curr.tv_usec - up.tv_usec)/(MILL+1)));
+		up.tv_sec = up.tv_sec + ((curr.tv_usec - up.tv_usec)/MILL);
+	}
+
+	if(curr.tv_usec > MILL + up.tv_usec)
+	{
+		up.tv_usec += (curr.tv_usec - up.tv_usec);
+		up.tv_sec -= (curr.tv_usec - up.tv_usec);
+	}
+
+	ncurr.tv_sec = curr.tv_sec - up.tv_sec;
+	ncurr.tv_usec = curr.tv_usec - up.tv_usec;
+
+	u_update(&u_obj, curr, ncurr, up);
+	*u = u_obj;
 }
 
 /**********************************************************************/
@@ -121,6 +131,8 @@ static int uthread_init(uthread_struct_t *u_new)
 	stack_t oldstack;
 	sigset_t set, oldset;
 	struct sigaction act, oldact;
+	
+	gettimeofday(&u_new->credits.begin, NULL);
 
 	gt_spin_lock(&(ksched_shared_info.uthread_init_lock));
 
@@ -193,7 +205,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	kthread_block_signal(SIGUSR1);
 
 #if 0
-	fprintf(stderr, "uthread_schedule invoked !!\n");
+	fprintf(stderr, "uthread_schedule invoked !! %d\n", kthread_apic_id());
 #endif
 
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
@@ -203,15 +215,19 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	{
 		int i;
 		for(i = 0; i < GT_MAX_KTHREADS; i++) 
-		{
-			if(kthread_cpu_map[i]->yet && (u_obj == kthread_best_sched_uthread(kthread_runq)))
+		{	
+			if (kthread_cpu_map[i])
 			{
+				if(kthread_cpu_map[i]->yet &&
+				 (u_obj == kthread_best_sched_uthread(kthread_runq)))
+				{
 
-				#if U_DEBUG
-					printf(stderr, "%s\n", "uthread is moved");
-				#endif 
-				add_to_runqueue(kthread_cpu_map[i]->krunqueue.active_runq, &(kthread_cpu_map[i]
-								->krunqueue.kthread_runqlock), u_obj);
+					#if U_DEBUG
+						printf("%s\n", "uthread is moved");
+					#endif 
+					add_to_runqueue(kthread_cpu_map[i]->krunqueue.active_runq, &(kthread_cpu_map[i]
+									->krunqueue.kthread_runqlock), u_obj);
+				}
 			}
 		}
 	}
@@ -219,7 +235,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	if(k_ctx->yid) 
 	{
 		#if U_DEBUG
-			printf(stderr, "%s\n", "yielded");
+			printf("%s\n", "yielded");
 		#endif
 		k_ctx->yid = 0;
 	}
@@ -253,6 +269,13 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		{
 			/* XXX: Apply uthread_group_penalty before insertion */
 			u_obj->uthread_state = UTHREAD_RUNNABLE;
+
+			if (u_obj->credits.credit_left < 1) 
+			{
+				u_obj->credits.credit_left = u_obj->credits.credit;
+				add_to_runqueue(kthread_runq->active_runq, &(kthread_runq->kthread_runqlock), u_obj);
+			}
+
 			add_to_runqueue(kthread_runq->expires_runq, &(kthread_runq->kthread_runqlock), u_obj);
 			/* XXX: Save the context (signal mask not saved) */
 			if(sigsetjmp(u_obj->uthread_env, 0))
@@ -283,7 +306,28 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	}
 
 	u_obj->uthread_state = UTHREAD_RUNNING;
-	
+	u_obj->credits.sched_time += 1;
+
+	struct itimerval curr, nxt;
+	getitimer(ITIMER_VIRTUAL, &curr);
+	printf("\nCredits left : %d\nDefault : %d", u_obj->credits.credit_left, KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000);
+
+	if(u_obj->credits.credit_left < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) 
+	{
+		if(u_obj->credits.credit_left < 25) 
+		{
+			nxt.it_value.tv_sec = 0;
+			nxt.it_value.tv_usec = 50000;
+		} else {
+			nxt.it_value.tv_sec = u_obj->credits.credit_left / 1000;
+			nxt.it_value.tv_usec = 1000 * (u_obj->credits.credit_left % 1000);
+		}
+		setitimer(ITIMER_VIRTUAL, &nxt, NULL);
+	} else {
+		kthread_init_vtalrm_timeslice();
+	}
+	gettimeofday(&(u_obj->credits.updated), NULL);
+
 	/* Re-install the scheduling signal handlers */
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
 	kthread_install_sighandler(SIGUSR1, k_ctx->kthread_sched_relay);
@@ -353,6 +397,8 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	u_new->uthread_gid = u_gid;
 	u_new->uthread_func = u_func;
 	u_new->uthread_arg = u_arg;
+	u_new->credits.usec_per_core = malloc(sizeof(int) * GT_MAX_KTHREADS);
+
 
 	/* Allocate new stack for uthread */
 	u_new->uthread_stack.ss_flags = 0; /* Stack enabled for signal handling */

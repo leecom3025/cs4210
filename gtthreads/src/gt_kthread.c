@@ -78,11 +78,12 @@ static int kthread_handler(void *arg)
 {
 #define k_ctx ((kthread_context_t *)arg)
 
-#if 0
+#if 1
 	printf("Thread to be scheduled on cpu\n");
 #endif
 	kthread_init(k_ctx);
-#if 0
+
+#if 1
 	printf("\nThread (tid : %u, pid : %u,  cpu : %d, cpu-apic-id %d) ready to run !!\n\n", 
 		k_ctx->tid, k_ctx->pid, k_ctx->cpuid, k_ctx->cpu_apic_id);
 #endif
@@ -178,7 +179,7 @@ extern kthread_runqueue_t *ksched_find_target(uthread_struct_t *u_obj)
 	u_obj->cpu_id = kthread_cpu_map[target_cpu]->cpuid;
 	u_obj->last_cpu_id = kthread_cpu_map[target_cpu]->cpuid;
 
-#if 0
+#if 1
 	printf("Target uthread (id:%d, group:%d) : cpu(%d)\n", u_obj->uthread_tid, u_obj->uthread_gid, kthread_cpu_map[target_cpu]->cpuid);
 #endif
 
@@ -324,7 +325,7 @@ extern void gtthread_app_init()
 	/* Num of logical processors (cpus/cores) */
 	num_cpus = (int)sysconf(_SC_NPROCESSORS_CONF);
 #if 0
-	fprintf(stderr, "Number of cores : %d\n", num_cores);
+	fprintf(stderr, "Number of cores : %d\n", num_cpus);
 #endif
 	/* kthreads (virtual processors) on all other logical processors */
 	for(inx=1; inx<num_cpus; inx++)
@@ -333,6 +334,7 @@ extern void gtthread_app_init()
 		k_ctx->cpuid = inx;
 		k_ctx->kthread_app_func = &gtthread_app_start;
 		/* kthread_init called inside kthread_handler */
+
 		if(kthread_create(&k_tid, kthread_handler, (void *)k_ctx) < 0)
 		{
 			fprintf(stderr, "kthread creation failed (errno:%d)\n", errno );

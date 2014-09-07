@@ -7,14 +7,17 @@ OBJ = $(SRC:.c=.o)
 
 OUT = bin/libuthread.a
 
+.PHONY: matrix
+
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
+matrix: $(OBJ)
+	ar rcs $(OUT) $(OBJ)
+	$(CC) $(CFLAGS) src/gt_matrix.c $(OUT) -o bin/matrix
 
 $(OUT): $(OBJ)
 	ar rcs $(OUT) $(OBJ)
 
-matrix:
-	$(CC) $(CFLAGS) src/gt_matrix.c $(OUT) -o bin/matrix
 
 #all : gt_include.h gt_kthread.c gt_kthread.h gt_uthread.c gt_uthread.h gt_pq.c gt_pq.h gt_signal.h gt_signal.c gt_spinlock.h gt_spinlock.c gt_matrix.c
 #	@echo Building...

@@ -181,7 +181,7 @@ int main()
 
 	gtthread_app_exit();
 
-	// print_matrix(&C);
+	print_matrix(&C);
 	// fprintf(stderr, "********************************");
 	return(0);
 }
