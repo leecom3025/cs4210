@@ -11,5 +11,3 @@
 #include "gt_kthread.h"
 
 #endif
-
-#define U_DEBUG 1

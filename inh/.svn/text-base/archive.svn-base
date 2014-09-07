@@ -1,0 +1,2 @@
+gcc -g -c gt_kthread.c gt_pq.c gt_signal.c gt_spinlock.c gt_uthread.c
+ar rcs libuthread.a *.o

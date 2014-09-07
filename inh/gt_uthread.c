@@ -9,21 +9,21 @@
 #include <setjmp.h>
 #include <errno.h>
 #include <assert.h>
-#include <time.h>
 
 #include "gt_include.h"
+
 /**********************************************************************/
 /** DECLARATIONS **/
 /**********************************************************************/
-extern void gt_yield();
-static void calcuate(uthread_struct_t *u_obj);
+
 
 /**********************************************************************/
 /* kthread runqueue and env */
 
 /* XXX: should be the apic-id */
 #define KTHREAD_CUR_ID	0
-
+extern gt_spinlock_t log_lock;
+FILE * log;
 /**********************************************************************/
 /* uthread scheduling */
 static void uthread_context_func(int);
@@ -33,83 +33,26 @@ static int uthread_init(uthread_struct_t *u_new);
 /* uthread creation */
 #define UTHREAD_DEFAULT_SSIZE (16 * 1024)
 
-extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, uthread_group_t u_gid);
+extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, uthread_group_t u_gid, int credits);
 
+extern void gt_yield(){
+  kthread_block_signal(SIGVTALRM);
+  kthread_block_signal(SIGUSR1);
+  kthread_context_t *k_ctx;
+  k_ctx = kthread_cpu_map[kthread_apic_id()];
+  k_ctx->yielded = 1;
+  struct itimerval next;
+  next.it_interval.tv_sec =0;
+  next.it_interval.tv_usec= 0;
+  next.it_value.tv_sec =0;
+  next.it_value.tv_usec= 10000;
+  setitimer(ITIMER_VIRTUAL, &next, NULL);
+  kthread_unblock_signal(SIGVTALRM);
+  kthread_unblock_signal(SIGUSR1);
+}
 /**********************************************************************/
 /** DEFNITIONS **/
-/* 
-Implement a	library function for voluntary preemption (gt_yield()).
-When a user-level thread executes this function, it should yield the CPU to the scheduler,
-which then schedules the next thread (per its scheduling scheme).	
-On voluntary preemption, the thread	should be charged credits only for the acctual CPU cycles used.
-*/
 /**********************************************************************/
-
-extern void gt_yield()
-{
- 	struct itimerval schd; 
-
-#if U_DEBUG
-	printf("\ngt_yield is called!\n");
-#endif	
-
-  	kthread_block_signal(SIGVTALRM);
-  	kthread_block_signal(SIGUSR1);
-  	kthread_context_t *k_ctx;
-  	k_ctx = kthread_cpu_map[kthread_apic_id()];
-  	k_ctx->yid = 1;
-  	
-  	schd.it_interval.tv_sec = schd.it_interval.tv_usec = schd.it_value.tv_sec = 0;
-  	schd.it_value.tv_usec = 10000;
-
-#if U_DEBUG
-  	printf("\n%s, %s, %s\n", schd.it_interval.tv_sec, schd.it_interval.tv_usec, schd.it_value.tv_sec);
-#endif 
-
-  	setitimer(ITIMER_VIRTUAL, &schd, NULL);
-	kthread_unblock_signal(SIGVTALRM);
-  	kthread_unblock_signal(SIGUSR1);
-}
-
-static int uthread_init(uthread_struct_t *u_obj)
-{
-#define MILL 1000000
-	struct timeval curr, ncurr, up;
-
-	up = (&u_obj->credits)->updated;
-	gettimeofday(&curr, NULL);
-
-	if(curr->tv_usec < up->tv_usec)
-	{
-		up->tv_usec = up->tv_usec - (MILL * ((curr->tv_usec - up->tv_usec)/(MILL+1)));
-		up->tv_sec = up->tv_sec + ((curr->tv_usec - up->tv_usec)/MILL);
-	}
-
-	if(curr->tv_usec > MILL + up->tv_usec)
-	{
-		up->tv_usec += (curr->tv_usec - up->tv_usec);
-		up->tv_sec -= (curr->tv_usec - up->tv_usec);
-	}
-
-	ncurr->tv_sec = curr->tv_sec - up->tv_sec;
-	ncurr->tv_usec = curr->tv_usec - up->tv_usec;
-
-	#if U_DEBUG
-		printf("%s %d\n", "u_obj before:", u_obj.credits->used_sec);
-	#endif	
-	
-	u_obj.credits->used_sec += ncurr->tv_usec + (ncurr->tv_sec * MILL);
-
-	#if U_DEBUG
-		printf("%s %d\n", "u_obj after: ", u_obj.credits->used_sec);
-	#endif
-
-	  // results = results_timeval.tv_sec * 1000 + results_timeval.tv_usec/1000;
-	  // u_obj->usec_per_core[kthread_apic_id()] +=results_timeval.tv_sec * 1000000 + results_timeval.tv_usec;;
-	  // u_obj->credits_remaining -=results;
-	  // fprintf(stderr, "used %d\n adn now %d remaining", results, u_obj->credits_remaining);
-	  
-}
 
 /**********************************************************************/
 /* uthread scheduling */
@@ -121,9 +64,8 @@ static int uthread_init(uthread_struct_t *u_new)
 	stack_t oldstack;
 	sigset_t set, oldset;
 	struct sigaction act, oldact;
-
+	gettimeofday(&u_new->start, NULL);
 	gt_spin_lock(&(ksched_shared_info.uthread_init_lock));
-
 	/* Register a signal(SIGUSR2) for alternate stack */
 	act.sa_handler = uthread_context_func;
 	act.sa_flags = (SA_ONSTACK | SA_RESTART);
@@ -181,13 +123,36 @@ static int uthread_init(uthread_struct_t *u_new)
 	gt_spin_unlock(&(ksched_shared_info.uthread_init_lock));
 	return 0;
 }
+int
+timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y)
+{
+  /* Perform the carry for the later subtraction by updating y. */
+  if (x->tv_usec < y->tv_usec) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
+  }
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
+  
+  /* Compute the time remaining to wait.
+     tv_usec is certainly positive. */
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
 
+  /* Return 1 if result is negative. */
+  return x->tv_sec < y->tv_sec;
+}
 extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kthread_runqueue_t *))
 {
 	kthread_context_t *k_ctx;
 	kthread_runqueue_t *kthread_runq;
 	uthread_struct_t *u_obj;
-
+	int results, counter;
+	struct timeval now, results_timeval;
 	/* Signals used for cpu_thread scheduling */
 	kthread_block_signal(SIGVTALRM);
 	kthread_block_signal(SIGUSR1);
@@ -199,37 +164,42 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
 	kthread_runq = &(k_ctx->krunqueue);
 
-	if(!k_ctx->yet)
-	{
-		int i;
-		for(i = 0; i < GT_MAX_KTHREADS; i++) 
-		{
-			if(kthread_cpu_map[i]->yet && (u_obj == kthread_best_sched_uthread(kthread_runq)))
-			{
-
-				#if U_DEBUG
-					printf(stderr, "%s\n", "uthread is moved");
-				#endif 
-				add_to_runqueue(kthread_cpu_map[i]->krunqueue.active_runq, &(kthread_cpu_map[i]
-								->krunqueue.kthread_runqlock), u_obj);
-			}
+	int inx;
+	if (!k_ctx->scavenger){
+	  for ( inx =0 ; inx < GT_MAX_KTHREADS; inx++){
+	    if (kthread_cpu_map[inx]){
+	      if (kthread_cpu_map[inx]->scavenger){
+		//gt_spin_lock(&(kthread_cpu_map[inx]->krunqueue.kthread_runqlock));
+		if((u_obj = kthread_best_sched_uthread(kthread_runq))) { 
+		  fprintf(stderr, "uthread migrated!\n");
+		  add_to_runqueue(kthread_cpu_map[inx]->krunqueue.active_runq,
+				  &(kthread_cpu_map[inx]->krunqueue.kthread_runqlock),
+				    u_obj);
 		}
+		//gt_spin_unlock(&(kthread_cpu_map[inx]->krunqueue.kthread_runqlock));
+	      }
+	    }
+	    
+	  }
 	}
-
-	if(k_ctx->yid) 
-	{
-		#if U_DEBUG
-			printf(stderr, "%s\n", "yielded");
-		#endif
-		k_ctx->yid = 0;
+	
+	if (k_ctx->yielded){
+	  fprintf(stderr, "yielded\n");
+	  k_ctx->yielded = 0;
 	}
-
 	if((u_obj = kthread_runq->cur_uthread))
 	{
-		// if the uthread is same thread that uthread running in kthread
-		calculate(&u_obj);
-
-		/*Go through the runq and schedule the next thread to run */
+	  gettimeofday(&now, NULL);
+	  timeval_subtract(&results_timeval, &now, &u_obj->last_updated);
+	  fprintf(stderr, "usec before %d \n", u_obj->usec);
+	  u_obj->usec += results_timeval.tv_sec * 1000000 + results_timeval.tv_usec;
+	  fprintf(stderr, "usec after %d \n", u_obj->usec);
+	  results = results_timeval.tv_sec * 1000 + results_timeval.tv_usec/1000;
+	  u_obj->usec_per_core[kthread_apic_id()] +=results_timeval.tv_sec * 1000000 + results_timeval.tv_usec;;
+	  u_obj->credits_remaining -=results;
+	  fprintf(stderr, "used %d\n adn now %d remaining", results, u_obj->credits_remaining);
+	  
+	  /*Go through the runq and schedule the next thread to run */
 		kthread_runq->cur_uthread = NULL;
 		
 		if(u_obj->uthread_state & (UTHREAD_DONE | UTHREAD_CANCELLED))
@@ -247,13 +217,28 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				gt_spin_lock(&ksched_info->ksched_lock);
 				ksched_info->kthread_cur_uthreads--;
 				gt_spin_unlock(&ksched_info->ksched_lock);
+				gt_spin_lock(&log_lock);
+				gettimeofday(&now, NULL);
+				timeval_subtract(&results_timeval, &now, &u_obj->last_updated);
+				fprintf(log, "uthread %d had %d schedulings and took %d usec took %d usec\n", u_obj->uthread_tid, u_obj->scheduling_times,u_obj->usec, results_timeval.tv_sec * 1000000 + results_timeval.tv_usec);
+				for (counter =0; counter < GT_MAX_KTHREADS; counter++){
+				  fprintf(log, "%d|", u_obj->usec_per_core[counter]);
+				}
+				fprintf(log, "\n");
+				gt_spin_unlock(&log_lock);
+
 			}
 		}
 		else
 		{
 			/* XXX: Apply uthread_group_penalty before insertion */
 			u_obj->uthread_state = UTHREAD_RUNNABLE;
-			add_to_runqueue(kthread_runq->expires_runq, &(kthread_runq->kthread_runqlock), u_obj);
+			if (u_obj->credits_remaining <=0){
+			  u_obj->credits_remaining = u_obj->credits;
+			  add_to_runqueue(kthread_runq->expires_runq, &(kthread_runq->kthread_runqlock), u_obj);
+			}
+			else
+			  add_to_runqueue(kthread_runq->active_runq, &(kthread_runq->kthread_runqlock), u_obj);
 			/* XXX: Save the context (signal mask not saved) */
 			if(sigsetjmp(u_obj->uthread_env, 0))
 				return;
@@ -284,6 +269,30 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 
 	u_obj->uthread_state = UTHREAD_RUNNING;
 	
+	u_obj->scheduling_times++;
+        struct itimerval current, next;
+        getitimer(ITIMER_VIRTUAL, &current);
+        fprintf(stderr, "\ncredits remaining is %d\nthe default is %d", u_obj->credits_remaining, 
+                KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000);
+        if (u_obj->credits_remaining < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000){
+	  if (u_obj->credits_remaining < 25){
+	    next.it_value.tv_sec = 0;
+	    next.it_value.tv_usec = 50000;
+	  }
+	  else{
+          next.it_value.tv_sec = u_obj->credits_remaining /1000;
+          next.it_value.tv_usec = 1000 * (u_obj->credits_remaining % 1000);
+	  }
+          fprintf(stderr, "schedule a short timeslice of time %d\n",
+                  next.it_value.tv_sec * 1000 + next.it_value.tv_usec / 1000);
+
+          setitimer(ITIMER_VIRTUAL, &next, NULL);
+        }
+        else{
+          fprintf(stderr, "schedule a normal timeslice\n");
+          kthread_init_vtalrm_timeslice();
+        }
+        gettimeofday(&u_obj->last_updated, NULL);
 	/* Re-install the scheduling signal handlers */
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
 	kthread_install_sighandler(SIGUSR1, k_ctx->kthread_sched_relay);
@@ -301,7 +310,7 @@ static void uthread_context_func(int signo)
 {
 	uthread_struct_t *cur_uthread;
 	kthread_runqueue_t *kthread_runq;
-
+	int counter;
 	kthread_runq = &(kthread_cpu_map[kthread_apic_id()]->krunqueue);
 
 	printf("..... uthread_context_func .....\n");
@@ -322,7 +331,6 @@ static void uthread_context_func(int signo)
 	/* Execute the uthread task */
 	cur_uthread->uthread_func(cur_uthread->uthread_arg);
 	cur_uthread->uthread_state = UTHREAD_DONE;
-
 	uthread_schedule(&sched_find_best_uthread);
 	return;
 }
@@ -332,11 +340,11 @@ static void uthread_context_func(int signo)
 
 extern kthread_runqueue_t *ksched_find_target(uthread_struct_t *);
 
-extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, uthread_group_t u_gid)
+extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, uthread_group_t u_gid, int credits)
 {
 	kthread_runqueue_t *kthread_runq;
 	uthread_struct_t *u_new;
-
+	
 	/* Signals used for cpu_thread scheduling */
 	kthread_block_signal(SIGVTALRM);
 	kthread_block_signal(SIGUSR1);
@@ -353,6 +361,15 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	u_new->uthread_gid = u_gid;
 	u_new->uthread_func = u_func;
 	u_new->uthread_arg = u_arg;
+	u_new->credits = credits;
+	u_new->credits_remaining = credits;
+	int counter =0;
+	u_new->usec = 0;
+	u_new->usec_per_core =  malloc(sizeof(int) * GT_MAX_KTHREADS);
+	u_new->scheduling_times = 0;
+	for (counter = 0; counter < GT_MAX_KTHREADS; counter++){
+	  u_new->usec_per_core[counter] = 0;
+	}
 
 	/* Allocate new stack for uthread */
 	u_new->uthread_stack.ss_flags = 0; /* Stack enabled for signal handling */

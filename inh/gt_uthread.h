@@ -13,28 +13,21 @@ typedef unsigned int uthread_group_t;
 #define UTHREAD_CANCELLED 0x08
 #define UTHREAD_DONE 0x10
 
-typedef struct credit_sch 
-{
-	int credit;
-	int credit_left;
-	int used_sec;
-	int sched_time;
-	int *usec_per_core;
-
-	struct timeval begin; // start
-	struct timeval updated; //last_updated
-
-} credit_sch_t;
-
 /* uthread struct : has all the uthread context info */
 typedef struct uthread_struct
 {
-	
-	int uthread_state; /* UTHREAD_INIT, UTHREAD_RUNNABLE, UTHREAD_RUNNING, UTHREAD_CANCELLED, UTHREAD_DONE */
+  int credits;
+  int credits_remaining;
+  struct timeval last_updated;
+  int usec;
+  struct timeval start;
+  int *usec_per_core;
+  int scheduling_times;
+  int uthread_state; /* UTHREAD_INIT, UTHREAD_RUNNABLE, UTHREAD_RUNNING, UTHREAD_CANCELLED, UTHREAD_DONE */
 	int uthread_priority; /* uthread running priority */
 	int cpu_id; /* cpu it is currently executing on */
 	int last_cpu_id; /* last cpu it was executing on */
-	
+  
 	uthread_t uthread_tid; /* thread id */
 	uthread_group_t uthread_gid; /* thread group id  */
 	int (*uthread_func)(void*);
@@ -48,8 +41,6 @@ typedef struct uthread_struct
 	sigjmp_buf uthread_env; /* 156 bytes : save user-level thread context*/
 	stack_t uthread_stack; /* 12 bytes : user-level thread stack */
 	TAILQ_ENTRY(uthread_struct) uthread_runq;
-
-	credit_sch_t credits; 
 } uthread_struct_t;
 
 struct __kthread_runqueue;

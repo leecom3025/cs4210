@@ -1,8 +1,6 @@
 #ifndef __GT_KTHREAD_H
 #define __GT_KTHREAD_H
 
-#include <stdlib.h>
-
 #define GT_MAX_CORES	16
 #define GT_MAX_KTHREADS GT_MAX_CORES
 
@@ -14,13 +12,16 @@ typedef unsigned int kthread_t;
 /* kthread flags */
 #define KTHREAD_DONE 0x01 /* Done scheduling. Don't relay signal to this kthread. */
 
+
+gt_spinlock_t log_lock;
 typedef struct __kthread_context
 {
 	unsigned int cpuid;
 	unsigned int cpu_apic_id;
 	unsigned int pid;
 	unsigned int tid;
-
+  unsigned int yielded;
+  unsigned int scavenger;
 	unsigned int kthread_flags;
 	void (*kthread_app_func)(void *); /* kthread application function */
 	void (*kthread_sched_timer)(int); /* vtalrm signal handler */
@@ -30,11 +31,6 @@ typedef struct __kthread_context
 	sigjmp_buf kthread_env; /* kthread's env to jump to (when done scheduling) */
 
 	kthread_runqueue_t krunqueue;
-	
-	/* for gt_yield() */
-	unsigned int yid; 
-	unsigned int yet; 
-	
 } kthread_context_t;
 
 
@@ -73,7 +69,7 @@ extern ksched_shared_info_t ksched_shared_info;
 
 /**********************************************************************/
 /* create a kthread */
-extern int kthread_create(kthread_t *tid, int (*start_fun)(void *), void *arg);
+extern int kthread_create(kthread_t *tid, void (*start_fun)(void *), void *arg);
 
 /**********************************************************************/
 /* apic-id of the cpu on which kthread is running (kthread_cpu_map) */
