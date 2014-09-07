@@ -90,6 +90,10 @@ static void u_update(uthread_struct_t **u, struct timeval curr, struct timeval n
 	u_obj->credits.usec_per_core[kthread_apic_id()] += ncurr.tv_sec * MILL + ncurr.tv_usec;
 	u_obj->credits.credit_left -= ncurr.tv_sec * 1000 + (ncurr.tv_usec/1000);
 
+	#if 1
+		printf("\n%s %d\n", "Credit left", u_obj->credits.credit_left);
+	#endif
+
 	*u = u_obj;
 }
 
@@ -311,7 +315,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	getitimer(ITIMER_VIRTUAL, &curr);
 	printf("\nCredits left : %d\nDefault : %d", u_obj->credits.credit_left, KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000);
 
-	if(u_obj->credits.credit_left < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) 
+	if(u_obj->credits.credit_left < 25){ // KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) 
 	{
 		if(u_obj->credits.credit_left < 25) 
 		{

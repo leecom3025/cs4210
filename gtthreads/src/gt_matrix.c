@@ -22,7 +22,7 @@
 #define NUM_GROUPS NUM_CPUS
 #define PER_GROUP_COLS (SIZE/NUM_GROUPS)
 
-#define NUM_THREADS 32
+#define NUM_THREADS 128
 #define PER_THREAD_ROWS (SIZE/NUM_THREADS)
 
 
@@ -71,6 +71,21 @@ static void generate_matrix(matrix_t *mat, int val)
 
 static void print_matrix(matrix_t *mat)
 {
+#if 1
+	int i, j, value;
+
+	for(i=0;i<SIZE;i++)
+	{
+		for(j=0;j<SIZE;j++) 
+		{
+			if (value != mat->m[i][j]) {
+				value = mat->m[i][j];
+				printf("\nVALUE IS %d\n", value);
+			}
+		}
+	}
+
+#else
 	int i, j;
 
 	for(i=0;i<SIZE;i++)
@@ -79,7 +94,7 @@ static void print_matrix(matrix_t *mat)
 			printf(" %d ",mat->m[i][j]);
 		printf("\n");
 	}
-
+#endif 
 	return;
 }
 
@@ -142,6 +157,8 @@ static void init_matrices()
 
 	return;
 }
+ 
+
 
 
 uthread_arg_t uargs[NUM_THREADS];
@@ -176,12 +193,12 @@ int main()
 		uarg->start_col = (uarg->gid * PER_GROUP_COLS);
 #endif
 
-		uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, 1024);
+		uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, 25);
 	}
 
 	gtthread_app_exit();
 
-	// print_matrix(&C);
+	print_matrix(&C);
 	// fprintf(stderr, "********************************");
 	return(0);
 }
