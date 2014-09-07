@@ -33,7 +33,7 @@ static int uthread_init(uthread_struct_t *u_new);
 /* uthread creation */
 #define UTHREAD_DEFAULT_SSIZE (16 * 1024)
 
-extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, uthread_group_t u_gid);
+extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, uthread_group_t u_gid, int credit);
 
 /**********************************************************************/
 /** DEFNITIONS **/
@@ -95,7 +95,6 @@ static void u_update(uthread_struct_t **u, struct timeval curr, struct timeval n
 
 static void calculate(uthread_struct_t **u)
 {
-	printf("\nHERRRRR\n");
 	uthread_struct_t *u_obj = *u;
 	struct timeval curr, ncurr, up;
 
@@ -131,7 +130,7 @@ static int uthread_init(uthread_struct_t *u_new)
 	stack_t oldstack;
 	sigset_t set, oldset;
 	struct sigaction act, oldact;
-	
+
 	gettimeofday(&u_new->credits.begin, NULL);
 
 	gt_spin_lock(&(ksched_shared_info.uthread_init_lock));
@@ -376,7 +375,7 @@ static void uthread_context_func(int signo)
 
 extern kthread_runqueue_t *ksched_find_target(uthread_struct_t *);
 
-extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, uthread_group_t u_gid)
+extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, uthread_group_t u_gid, int credits)
 {
 	kthread_runqueue_t *kthread_runq;
 	uthread_struct_t *u_new;
@@ -397,8 +396,8 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	u_new->uthread_gid = u_gid;
 	u_new->uthread_func = u_func;
 	u_new->uthread_arg = u_arg;
+	u_new->credits.credit = u_new->credits.credit_left = credits;
 	u_new->credits.usec_per_core = malloc(sizeof(int) * GT_MAX_KTHREADS);
-
 
 	/* Allocate new stack for uthread */
 	u_new->uthread_stack.ss_flags = 0; /* Stack enabled for signal handling */

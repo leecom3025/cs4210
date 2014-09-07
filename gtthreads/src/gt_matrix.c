@@ -176,12 +176,12 @@ int main()
 		uarg->start_col = (uarg->gid * PER_GROUP_COLS);
 #endif
 
-		uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid);
+		uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, 1024);
 	}
 
 	gtthread_app_exit();
 
-	print_matrix(&C);
+	// print_matrix(&C);
 	// fprintf(stderr, "********************************");
 	return(0);
 }
