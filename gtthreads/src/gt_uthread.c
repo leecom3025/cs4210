@@ -14,6 +14,8 @@
 #include "gt_include.h"
 /**********************************************************************/
 /** DECLARATIONS **/
+/*Each set of <# of matrix, credit> should have same CPU time but higher the credit is lower wait time is 
+  As # of matrix increase, CPU time increase.  */
 /**********************************************************************/
 extern void gt_yield();
 static void calcuate(uthread_struct_t **u_obj);
@@ -315,9 +317,9 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	getitimer(ITIMER_VIRTUAL, &curr);
 	printf("\nCredits left : %d\nDefault : %d\n", u_obj->credits.credit_left, u_obj->credits.def_credit);
 
-	if(u_obj->credits.credit_left < 25)// KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) 
+	if(u_obj->credits.credit_left < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) //25)
 	{
-		if(u_obj->credits.credit_left < 25) 
+		if(u_obj->credits.credit_left < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) // 25) 
 		{
 			nxt.it_value.tv_sec = 0;
 			nxt.it_value.tv_usec = 50000;
