@@ -273,29 +273,27 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	u_obj->uthread_state = UTHREAD_RUNNING;
 	
 	u_obj->scheduling_times++;
-        struct itimerval current, next;
-        getitimer(ITIMER_VIRTUAL, &current);
-        fprintf(stderr, "\ncredits remaining is %d\nthe default is %d", u_obj->credits_remaining, 
-                KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000);
-        if (u_obj->credits_remaining < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000){
-	  if (u_obj->credits_remaining < 25){
-	    next.it_value.tv_sec = 0;
-	    next.it_value.tv_usec = 50000;
-	  }
-	  else{
+	struct itimerval current, next;
+	getitimer(ITIMER_VIRTUAL, &current);
+    fprintf(stderr, "\ncredits remaining is %d\nthe default is %d", u_obj->credits_remaining, 
+            KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000);
+    if (u_obj->credits_remaining < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000){
+		if (u_obj->credits_remaining < 25){
+	 	   next.it_value.tv_sec = 0;
+	  	  next.it_value.tv_usec = 50000;
+		}else{
           next.it_value.tv_sec = u_obj->credits_remaining /1000;
           next.it_value.tv_usec = 1000 * (u_obj->credits_remaining % 1000);
-	  }
-          fprintf(stderr, "schedule a short timeslice of time %d\n",
-                  next.it_value.tv_sec * 1000 + next.it_value.tv_usec / 1000);
+	  	}
+		fprintf(stderr, "schedule a short timeslice of time %d\n",
+              next.it_value.tv_sec * 1000 + next.it_value.tv_usec / 1000);
 
-          setitimer(ITIMER_VIRTUAL, &next, NULL);
-        }
-        else{
-          fprintf(stderr, "schedule a normal timeslice\n");
-          kthread_init_vtalrm_timeslice();
-        }
-        gettimeofday(&u_obj->last_updated, NULL);
+		setitimer(ITIMER_VIRTUAL, &next, NULL);
+    }else{
+		fprintf(stderr, "schedule a normal timeslice\n");
+		kthread_init_vtalrm_timeslice();
+    }
+    gettimeofday(&u_obj->last_updated, NULL);
 	/* Re-install the scheduling signal handlers */
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
 	kthread_install_sighandler(SIGUSR1, k_ctx->kthread_sched_relay);

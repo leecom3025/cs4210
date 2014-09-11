@@ -11,7 +11,7 @@
 #include <assert.h>
 
 #include "../gt_include.h"
-
+#define GT_THREADS 1
 
 #define ROWS 512
 #define COLS ROWS
@@ -184,7 +184,7 @@ int main()
 	fprintf(stderr, "********************************");
 	// print_matrix(&B);
 	fprintf(stderr, "********************************");
-	// print_matrix(&C);
+	print_matrix(&C);
 	fprintf(stderr, "********************************");
 	return(0);
 }
