@@ -93,9 +93,8 @@ static void u_update(uthread_struct_t **u, struct timeval curr, struct timeval n
 	u_obj->credits.credit_left -= ncurr.tv_sec * 1000 + (ncurr.tv_usec/1000);
 
 	#if 1
-		printf("\n%s %d\n", "Credit left", u_obj->credits.credit_left);
+		printf("\n%s[%d] %d\n", "Credit left", u_obj->uthread_state, u_obj->credits.credit_left);
 	#endif
-
 	*u = u_obj;
 }
 
@@ -224,7 +223,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 			if (kthread_cpu_map[i])
 			{
 				if(kthread_cpu_map[i]->yet &&
-				 (u_obj == kthread_best_sched_uthread(kthread_runq)))
+				 (u_obj = kthread_best_sched_uthread(kthread_runq)))
 				{
 
 					#if U_DEBUG
@@ -278,10 +277,10 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 			if (u_obj->credits.credit_left < 1) 
 			{
 				u_obj->credits.credit_left = u_obj->credits.credit;
+				add_to_runqueue(kthread_runq->expires_runq, &(kthread_runq->kthread_runqlock), u_obj);
+			} else {
 				add_to_runqueue(kthread_runq->active_runq, &(kthread_runq->kthread_runqlock), u_obj);
 			}
-
-			add_to_runqueue(kthread_runq->expires_runq, &(kthread_runq->kthread_runqlock), u_obj);
 			/* XXX: Save the context (signal mask not saved) */
 			if(sigsetjmp(u_obj->uthread_env, 0))
 				return;
@@ -315,11 +314,12 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 
 	struct itimerval curr, nxt;
 	getitimer(ITIMER_VIRTUAL, &curr);
-	printf("\nCredits left : %d\nDefault : %d\n", u_obj->credits.credit_left, u_obj->credits.def_credit);
+
+	printf("\nThread(id:%d, credit left: %d, default: %d)\n", u_obj->uthread_tid, u_obj->credits.credit_left, u_obj->credits.def_credit);
 
 	if(u_obj->credits.credit_left < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) //25)
 	{
-		if(u_obj->credits.credit_left < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) // 25) 
+		if(u_obj->credits.credit_left < 25) //KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) // 25) 
 		{
 			nxt.it_value.tv_sec = 0;
 			nxt.it_value.tv_usec = 50000;
@@ -331,6 +331,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	} else {
 		kthread_init_vtalrm_timeslice();
 	}
+
 	gettimeofday(&(u_obj->credits.updated), NULL);
 
 	/* Re-install the scheduling signal handlers */

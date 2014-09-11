@@ -54,6 +54,7 @@ typedef struct __uthread_arg
 	int end_row;
 	int end_col;
 	
+	int size;
 }uthread_arg_t;
 	
 struct timeval tv1;
@@ -74,7 +75,7 @@ static void generate_matrix(matrix_t *mat, int val)
 
 static void print_matrix(matrix_t *mat)
 {
-#if 1
+#if 0
 	// int i, j, value;
 
 	// for(i=0;i<mat->end_row;i++)
@@ -93,9 +94,11 @@ static void print_matrix(matrix_t *mat)
 
 	for(i=0;i<SIZE;i++)
 	{
-		for(j=0;j<SIZE;j++)
-			printf(" %d ",mat->m[i][j]);
-		printf("\n");
+		for(j=0;j<SIZE;j++) {
+			if (mat->m[i][j] != 0)
+				printf(" %d ",mat->m[i][j]);
+		}
+		// printf("\n");
 	}
 #endif 
 	return;
@@ -114,7 +117,7 @@ static void * uthread_mulmat(void *p)
 	i=0; j= 0; k=0;
 
 	start_row = ptr->start_row;
-	end_row = ptr->end_row; // (ptr->start_row + PER_THREAD_ROWS);
+	end_row = (ptr->start_row + PER_THREAD_ROWS);
 
 #ifdef GT_GROUP_SPLIT
 	start_col = ptr->start_col;
@@ -194,19 +197,22 @@ int main()
 
 		uarg->gid = (inx % NUM_GROUPS);
 
-		uarg->start_row = 0; //(inx * PER_THREAD_ROWS);
+		uarg->start_row = (inx * PER_THREAD_ROWS);
 #ifdef GT_GROUP_SPLIT
 		/* Wanted to split the columns by groups !!! */
 		uarg->start_col = (uarg->gid * PER_GROUP_COLS);
 #endif
+		uarg->end_col = sizes[uarg->gid];
 		uarg->end_row = sizes[uarg->gid];
+		uarg->size = sizes[uarg->gid];
 
 		uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, 25 + uarg->gid * 25);
 	}
 
 	gtthread_app_exit();
 
-	print_matrix(&C);
-	// fprintf(stderr, "********************************");
+	print_matrix((&uargs[2])->_C);
+	// print_matrix(&C);
+	fprintf(stderr, "********************************");
 	return(0);
 }
