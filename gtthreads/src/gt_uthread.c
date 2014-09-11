@@ -67,9 +67,9 @@ extern void gt_yield()
   	schd.it_value.tv_sec = 0;
   	schd.it_value.tv_usec = 10000;
 
-// #if U_DEBUG
-  	// printf("\n%s, %s, %s\n", schd.it_interval.tv_sec, schd.it_interval.tv_usec, schd.it_value.tv_sec);
-// #endif 
+#if 0
+  	printf("\n%d, %f, %f\n", schd.it_interval.tv_sec, schd.it_interval.tv_usec, schd.it_value.tv_sec);
+#endif 
 
   	setitimer(ITIMER_VIRTUAL, &schd, NULL);
 	kthread_unblock_signal(SIGVTALRM);
@@ -93,7 +93,7 @@ static void u_update(uthread_struct_t **u, struct timeval curr, struct timeval n
 	u_obj->credits.credit_left -= ncurr.tv_sec * 1000 + (ncurr.tv_usec/1000);
 
 	#if 1
-		printf("\n%s[%d] %d\n", "Credit left", u_obj->uthread_state, u_obj->credits.credit_left);
+		printf("\n%s[%d] %d\n", "Credit left", u_obj->uthread_tid, u_obj->credits.credit_left);
 	#endif
 	*u = u_obj;
 }
@@ -256,6 +256,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		{
 			/* XXX: Inserting uthread into zombie queue is causing improper
 			 * cleanup/exit of uthread (core dump) */
+			printf("\nDONE %d, used-sec:\n", u_obj->uthread_tid, u_obj->credits.used_sec);
 			uthread_head_t * kthread_zhead = &(kthread_runq->zombie_uthreads);
 			gt_spin_lock(&(kthread_runq->kthread_runqlock));
 			kthread_runq->kthread_runqlock.holder = 0x01;
@@ -315,7 +316,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	struct itimerval curr, nxt;
 	getitimer(ITIMER_VIRTUAL, &curr);
 
-	printf("\nThread(id:%d, credit left: %d, default: %d)\n", u_obj->uthread_tid, u_obj->credits.credit_left, u_obj->credits.def_credit);
+	// printf("\nThread(id:%d, credit left: %d, default: %d)\n", u_obj->uthread_tid, u_obj->credits.credit_left, u_obj->credits.def_credit);
 
 	if(u_obj->credits.credit_left < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) //25)
 	{

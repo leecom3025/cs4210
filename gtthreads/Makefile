@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -g
-LDFLAGS = 
+LDFLAGS = -lm
 LIBS = .
 SRC = src/gt_kthread.c src/gt_uthread.c src/gt_pq.c src/gt_signal.c src/gt_spinlock.c
 OBJ = $(SRC:.c=.o)
@@ -13,7 +13,7 @@ OUT = bin/libuthread.a
 	$(CC) $(CFLAGS) -c $< -o $@
 matrix: $(OBJ)
 	ar rcs $(OUT) $(OBJ)
-	$(CC) $(CFLAGS) src/gt_matrix.c $(OUT) -o bin/matrix
+	$(CC) $(CFLAGS) src/gt_matrix.c $(OUT) -o bin/matrix $(LDFLAGS)
 
 $(OUT): $(OBJ)
 	ar rcs $(OUT) $(OBJ)

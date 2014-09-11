@@ -9,6 +9,7 @@
 #include <setjmp.h>
 #include <errno.h>
 #include <assert.h>
+#include <math.h>
 
 #include "gt_include.h"
 
@@ -148,6 +149,29 @@ static void init_matrices()
 		generate_matrix(&(C[index]), 0);
 	}
 	return;
+}
+
+long sum (long *array, int start, int end)
+{
+	int i;
+	long sum_value = 0;
+	for(i = start; i<end; i++)
+	sum_value += array[i];
+
+	return sum_value;
+}
+		
+float standard_deviation(long *array, int start, int end, float mean)
+{
+	int i;
+	long sd = 0;
+	long temp = 0;
+	for(i=start; i<end; i++)
+		temp += (array[i] - mean)*(array[i] - mean);
+
+	sd = (float) sqrt(temp/32);
+
+	return sd;
 }
 
 uthread_arg_t uargs[NUM_THREADS * 4];

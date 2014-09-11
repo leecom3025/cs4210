@@ -12,4 +12,4 @@
 
 #endif
 
-#define U_DEBUG 0
+#define U_DEBUG 1
