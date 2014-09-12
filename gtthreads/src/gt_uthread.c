@@ -80,7 +80,7 @@ static void calculate(uthread_struct_t **u)
 	unsigned long fuck = (((curr.tv_sec * MILL) + curr.tv_usec) - ((up.tv_sec * MILL) + up.tv_usec))/1000;
 	u_obj->credits.credit_left -= fuck;
 
-	#if 1
+	#if U_DEBUG
 		printf("\n%s[%d] %d decreased by %lu\n", "Credit left", u_obj->uthread_tid, u_obj->credits.credit_left, fuck);
 	#endif
 
@@ -292,7 +292,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				REAL[u_obj->uthread_tid] = u_obj->credits.used_sec;
 				TAKEN[u_obj->uthread_tid] = u_obj->credits.begin.tv_usec + (u_obj->credits.begin.tv_sec * MILL);
 				u_begin[u_obj->uthread_tid] = u_obj->credits.begin.tv_usec + (u_obj->credits.begin.tv_sec * MILL);
-				#if 1
+				#if U_DEBUG
 					printf("\nuthread (id:%d) created at %lus %lu\n", u_obj->uthread_tid, 
 						u_obj->credits.begin.tv_sec, 
 						u_obj->credits.begin.tv_usec);
@@ -353,10 +353,9 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		kthread_init_vtalrm_timeslice();
 	else
 	{
-		nxt.it_value.tv_sec = (u_obj->credits.credit_left) / 1000;
-		nxt.it_value.tv_usec = 1000 * ((u_obj->credits.credit_left) % 1000);
+		nxt.it_value.tv_sec = (100 - u_obj->credits.credit_left) / 1000;
+		nxt.it_value.tv_usec = 1000 * ((100-u_obj->credits.credit_left) % 1000);
 		setitimer(ITIMER_VIRTUAL, &nxt, NULL);
-
 	}
 
 

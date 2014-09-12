@@ -56,7 +56,7 @@ typedef struct __uthread_arg
 }uthread_arg_t;
 	
 struct timeval tv1;
-unsigned long wait_time[128];
+long long wait_time[128];
 
 
 static void generate_matrix(matrix_t *mat, int val)
@@ -99,8 +99,7 @@ static void * uthread_mulmat(void *p)
 	int size;
 
 #define ptr ((uthread_arg_t *)p)
-	wait_time[ptr->tid] = u_begin[ptr->tid];
-	printf("\n %d Taken: %lu\n", ptr->tid, u_begin[ptr->tid]);
+	
 
 	i=0; j= 0; k=0;
 
@@ -118,7 +117,7 @@ static void * uthread_mulmat(void *p)
 
 #ifdef GT_THREADS
 	cpuid = kthread_cpu_map[kthread_apic_id()]->cpuid;
-	fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) started",ptr->tid, ptr->gid, cpuid);
+	// fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) started",ptr->tid, ptr->gid, cpuid);
 #else
 	fprintf(stderr, "\nThread(id:%d, group:%d) started",ptr->tid, ptr->gid);
 #endif
@@ -131,8 +130,8 @@ static void * uthread_mulmat(void *p)
 
 #ifdef GT_THREADS
 	// gt_yield(); // this one shouldn't be matter
-	fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) finished (TIME : %lu s and %lu us)",
-			ptr->tid, ptr->gid, cpuid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
+	// fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) finished (TIME : %lu s and %lu us)",
+			// ptr->tid, ptr->gid, cpuid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
 
 #else
 	gettimeofday(&tv2,NULL);
@@ -143,8 +142,8 @@ static void * uthread_mulmat(void *p)
 	// wait_time[ptr->tid] = ((tv2.tv_sec - u_begin[ptr->tid].tv_sec) * 1000000) + (tv2.tv_usec - u_begin[ptr->tid].tv_usec); 
 	// wait_time[ptr->tid] = ((u_begin[ptr->tid].tv_sec) * 1000000) + (u_begin[ptr->tid].tv_usec); 
 
-	// wait_time[ptr->tid] = (((tv2.tv_sec - tv1.tv_sec)*1000000) + (tv2.tv_usec - tv1.tv_usec)) - REAL[ptr->tid];
-
+	wait_time[ptr->tid] = (((tv2.tv_sec - tv1.tv_sec)*1000000) + (tv2.tv_usec - tv1.tv_usec)) - REAL[ptr->tid];
+	// wait_time[ptr->tid] = (tv2.tv_sec * 1000000) + (tv2.tv_usec);
 #undef ptr
 	return 0;
 }
@@ -206,7 +205,7 @@ int main()
 	int mtx;
 	for(mtx=0; mtx < 4; mtx++){
 		int per_thread = m_size[mtx] / NUM_THREADS; // 32
-		for(inx=0; inx<NUM_THREADS; inx++)
+		for(inx=NUM_THREADS - 1; inx > -1; inx--)
 		{
 			uarg = &uargs[(mtx*NUM_THREADS) + inx];
 			uarg->_A = &(A[mtx]);
@@ -258,6 +257,9 @@ int main()
 		for(mCredit = 0; mCredit < 8; mCredit++) {
 			run_time += REAL[(mSize*8) + mCredit];
 			total_time += wait_time[(mSize*8) + mCredit];
+			// total_time += (wait_time[(mSize*8) + mCredit] - u_begin[(mSize*8) + mCredit]);
+			// wait_time[(mSize*8) + mCredit] = u_begin[ptr->tid];
+			// printf("\n %d Taken: %llu\n", (mSize*8) + mCredit, wait_time[(mSize*8) + mCredit] - u_begin[(mSize*8) + mCredit]);
 		}
 		printf("%d. runtime: %ld, wait time: %ld\n", mSize, run_time/8, total_time/8);
 
