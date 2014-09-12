@@ -56,6 +56,8 @@ typedef struct __uthread_arg
 }uthread_arg_t;
 	
 struct timeval tv1;
+unsigned long wait_time[128];
+
 
 static void generate_matrix(matrix_t *mat, int val)
 {
@@ -123,16 +125,23 @@ static void * uthread_mulmat(void *p)
 	  for(j = start_col; j < end_col; j++)
 			for(k = 0; k < size; k++)
 				ptr->_C->m[i][j] += ptr->_A->m[i][k] * ptr->_B->m[k][j];
+	gettimeofday(&tv2,NULL);
 
 #ifdef GT_THREADS
 	gt_yield();
-	// fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) finished (TIME : %lu s and %lu us)",
-			// ptr->tid, ptr->gid, cpuid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
+	fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) finished (TIME : %lu s and %lu us)",
+			ptr->tid, ptr->gid, cpuid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
+
 #else
 	gettimeofday(&tv2,NULL);
 	fprintf(stderr, "\nThread(id:%d, group:%d) finished (TIME : %lu s and %lu us)",
 			ptr->tid, ptr->gid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
 #endif
+	// wait_time[ptr->tid] = ((tv2.tv_sec * 1000000) + tv2.tv_usec) - TAKEN[ptr->tid];
+	// wait_time[ptr->tid] = ((tv2.tv_sec - u_begin[ptr->tid].tv_sec) * 1000000) + (tv2.tv_usec - u_begin[ptr->tid].tv_usec); 
+	// wait_time[ptr->tid] = ((u_begin[ptr->tid].tv_sec) * 1000000) + (u_begin[ptr->tid].tv_usec); 
+	wait_time[ptr->tid] = (((tv2.tv_sec - tv1.tv_sec)*1000000) + (tv2.tv_usec - tv1.tv_usec)) - REAL[ptr->tid];
+	// printf("\n %d Taken: %lu\n", ptr->tid, wait_time[ptr->tid]);
 
 #undef ptr
 	return 0;
@@ -178,6 +187,7 @@ uthread_arg_t uargs[NUM_THREADS * 4];
 uthread_t utids[NUM_THREADS * 4];
 int m_size[4] = {32, 64, 128, 256};
 int c_size[4] = {25, 50, 75, 100};
+long on_cpu[128];
 
 int main()
 {
@@ -193,7 +203,7 @@ int main()
 
 	int mtx;
 	for(mtx=0; mtx < 4; mtx++){
-		int per_thread = m_size[mtx] / NUM_THREADS;
+		int per_thread = m_size[mtx] / NUM_THREADS; // 32
 		for(inx=0; inx<NUM_THREADS; inx++)
 		{
 			uarg = &uargs[(mtx*NUM_THREADS) + inx];
@@ -201,9 +211,9 @@ int main()
 			uarg->_B = &(B[mtx]);
 			uarg->_C = &(C[mtx]);
 
-			uarg->tid = inx;
+			uarg->tid = (mtx*NUM_THREADS) + inx;
 
-			uarg->gid = (inx % NUM_GROUPS);
+			uarg->gid = mtx; // (inx % NUM_GROUPS);
 
 			uarg->start_row = (inx * per_thread);
 			uarg->size = m_size[mtx];
@@ -227,7 +237,30 @@ int main()
 	for(inx=0; inx < 4; inx++){
 		print_matrix(&(C[inx]));
 	}
-	fprintf(stderr, "********************************");
+	fprintf(stderr, "********************************\n");
+
+	// for(inx = 0; inx < 16; inx++) {
+	// 	mSize = m_size[inx /4];
+	// 	mCredit = c_size[(inx%4)];
+	// 	printf("(%dx%d, %d) => Real: %lld, Taken:%lld\n", mSize, mSize, mCredit, REAL[inx]/8, TAKEN[inx]/8);
+	// }
+
+	// for(inx = 0; inx < 128; inx++) {
+		// printf("%d. runtime: %ld, total: %ld\n", inx, REAL[inx], wait_time[inx]);
+	// }
+
+	int mSize, mCredit;
+	long run_time, total_time;
+	for(mSize =0; mSize < 16; mSize++) {
+		run_time = total_time = 0;
+		for(mCredit = 0; mCredit < 8; mCredit++) {
+			run_time += REAL[(mSize*8) + mCredit];
+			total_time += wait_time[(mSize*8) + mCredit];
+		}
+		printf("%d. runtime: %ld, wait time: %ld\n", mSize, run_time/8, total_time/8);
+
+	}
+
 	return(0);
 
 

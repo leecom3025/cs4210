@@ -223,7 +223,8 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				gt_spin_lock(&log_lock);
 				gettimeofday(&now, NULL);
 				timeval_subtract(&results_timeval, &now, &u_obj->last_updated);
-				fprintf(log, "uthread %d had %d schedulings and took %d usec took %d usec\n", u_obj->uthread_tid, u_obj->scheduling_times,u_obj->usec, results_timeval.tv_sec * 1000000 + results_timeval.tv_usec);
+				fprintf(log, "uthread %d had %d schedulings and took %d usec took %d usec\n", u_obj->uthread_tid,
+						 u_obj->scheduling_times,u_obj->usec, results_timeval.tv_sec * 1000000 + results_timeval.tv_usec);
 				for (counter =0; counter < GT_MAX_KTHREADS; counter++){
 				  fprintf(log, "%d|", u_obj->usec_per_core[counter]);
 				}

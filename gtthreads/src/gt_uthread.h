@@ -5,6 +5,13 @@
 
 typedef unsigned int uthread_t;
 typedef unsigned int uthread_group_t;
+extern long TAKEN[128];
+extern long REAL[128];
+
+extern long RUN_TIME[128];
+extern long TOTAL_TIME[128];
+extern struct timeval u_begin[128];
+
 
 /* uthread states */
 #define UTHREAD_INIT 0x01
@@ -55,4 +62,5 @@ typedef struct uthread_struct
 
 struct __kthread_runqueue;
 extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(struct __kthread_runqueue *));
+
 #endif

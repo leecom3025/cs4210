@@ -103,7 +103,8 @@ static void kthread_init(kthread_context_t *k_ctx)
 
 	k_ctx->pid = syscall(SYS_getpid);
 	k_ctx->tid = syscall(SYS_gettid);
-
+	k_ctx->yet = 0;
+	
 	/* For priority co-scheduling */
 	k_ctx->kthread_sched_timer = ksched_priority;
 	k_ctx->kthread_sched_relay = ksched_cosched;
@@ -281,7 +282,7 @@ static void gtthread_app_start(void *arg)
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
 	assert((k_ctx->cpu_apic_id == kthread_apic_id()));
 
-#if 0
+#if 1
 	printf("kthread (%d) ready to schedule", k_ctx->cpuid);
 #endif
 	while(!(k_ctx->kthread_flags & KTHREAD_DONE))
@@ -296,6 +297,9 @@ static void gtthread_app_start(void *arg)
 		}
 		uthread_schedule(&sched_find_best_uthread);
 	}
+	gt_spin_lock(&k_ctx->krunqueue.kthread_runqlock);
+	k_ctx->yet = 1;
+	gt_spin_unlock(&k_ctx->krunqueue.kthread_runqlock);
 	kthread_exit();
 
 	return;
