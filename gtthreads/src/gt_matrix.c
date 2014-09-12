@@ -203,7 +203,7 @@ int main()
 	gettimeofday(&tv1,NULL);
 
 	int mtx;
-	for(mtx=0; mtx < 4; mtx++){
+	for(mtx=3; mtx > -1; mtx--){
 		int per_thread = m_size[mtx] / NUM_THREADS; // 32
 		for(inx=NUM_THREADS - 1; inx > -1; inx--)
 		{
@@ -257,8 +257,7 @@ int main()
 		for(mCredit = 0; mCredit < 8; mCredit++) {
 			run_time += REAL[(mSize*8) + mCredit];
 			total_time += wait_time[(mSize*8) + mCredit];
-			// total_time += (wait_time[(mSize*8) + mCredit] - u_begin[(mSize*8) + mCredit]);
-			// wait_time[(mSize*8) + mCredit] = u_begin[ptr->tid];
+			
 			// printf("\n %d Taken: %llu\n", (mSize*8) + mCredit, wait_time[(mSize*8) + mCredit] - u_begin[(mSize*8) + mCredit]);
 		}
 		printf("%d. runtime: %ld, wait time: %ld\n", mSize, run_time/8, total_time/8);
