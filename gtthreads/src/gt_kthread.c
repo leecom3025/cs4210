@@ -180,8 +180,8 @@ extern kthread_runqueue_t *ksched_find_target(uthread_struct_t *u_obj)
 	u_obj->cpu_id = kthread_cpu_map[target_cpu]->cpuid;
 	u_obj->last_cpu_id = kthread_cpu_map[target_cpu]->cpuid;
 
-#if U_DEBUG
-	printf("Target uthread (id:%d, group:%d) : cpu(%d)\n", u_obj->uthread_tid, u_obj->uthread_gid, kthread_cpu_map[target_cpu]->cpuid);
+#if 1
+	printf("\nTarget uthread (id:%d, group:%d) : cpu(%d)\n", u_obj->uthread_tid, u_obj->uthread_gid, kthread_cpu_map[target_cpu]->cpuid);
 #endif
 
 	return(&(kthread_cpu_map[target_cpu]->krunqueue));
@@ -283,7 +283,7 @@ static void gtthread_app_start(void *arg)
 	assert((k_ctx->cpu_apic_id == kthread_apic_id()));
 
 #if 1
-	printf("kthread (%d) ready to schedule", k_ctx->cpuid);
+	printf("\nkthread (%d) ready to schedule", k_ctx->cpuid);
 #endif
 	while(!(k_ctx->kthread_flags & KTHREAD_DONE))
 	{

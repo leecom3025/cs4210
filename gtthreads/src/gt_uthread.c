@@ -25,7 +25,7 @@ long TAKEN[128];
 long RUN_TIME[128];
 long TOTAL_TIME[128];
 
-struct timeval u_begin[128];
+long long u_begin[128];
 
 #define MILL 1000000
 
@@ -173,13 +173,28 @@ On voluntary preemption, the thread	should be charged credits only for the acctu
 extern void gt_yield()
 {
  	struct itimerval schd; 
-
 #if U_DEBUG
 	printf("\ngt_yield(%d) is called!\n", kthread_apic_id());
 #endif	
+// uthread_struct_t *cur_uthread;
+//   kthread_runqueue_t *kthread_runq;
+
+//   // Get the kthread runqueue on which this thread is running.
+//   kthread_runq = &(kthread_cpu_map[kthread_apic_id()]->krunqueue);
+
+//   // Get the thread object of the thread that is calling this function.
+//   cur_uthread = kthread_runq->cur_uthread;
+//   assert(cur_uthread->uthread_state == UTHREAD_RUNNING);
+
+//   // Set state to UTHREAD_YIELD
+//   cur_uthread->uthread_state = UTHREAD_YIELD;
+//   uthread_schedule(&sched_find_best_uthread);
 
   	kthread_block_signal(SIGVTALRM);
   	kthread_block_signal(SIGUSR1);
+
+
+
   	kthread_context_t *k_ctx;
   	k_ctx = kthread_cpu_map[kthread_apic_id()];
   	k_ctx->yid = 1;
@@ -241,8 +256,8 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 
 	if(k_ctx->yid) 
 	{
-		#if U_DEBUG
-			printf("%s\n", "yielded");
+		#if 1
+			printf("\n%s\n", "yielded");
 		#endif
 		k_ctx->yid = 0;
 	}
@@ -276,9 +291,15 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 
 				REAL[u_obj->uthread_tid] = u_obj->credits.used_sec;
 				TAKEN[u_obj->uthread_tid] = u_obj->credits.begin.tv_usec + (u_obj->credits.begin.tv_sec * MILL);
-				u_begin[u_obj->uthread_tid] = u_obj->credits.begin;
-
+				u_begin[u_obj->uthread_tid] = u_obj->credits.begin.tv_usec + (u_obj->credits.begin.tv_sec * MILL);
+				#if 1
+					printf("\nuthread (id:%d) created at %lus %lu\n", u_obj->uthread_tid, 
+						u_obj->credits.begin.tv_sec, 
+						u_obj->credits.begin.tv_usec);
+				#endif
 			}
+
+		// }else if (u_obj->uthread_state & u_obj->) {
 
 		}else{
 			/* XXX: Apply uthread_group_penalty before insertion */
@@ -332,8 +353,8 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		kthread_init_vtalrm_timeslice();
 	else
 	{
-		nxt.it_value.tv_sec = u_obj->credits.credit_left / 1000;
-		nxt.it_value.tv_usec = 1000 * (u_obj->credits.credit_left % 1000);
+		nxt.it_value.tv_sec = (u_obj->credits.credit_left) / 1000;
+		nxt.it_value.tv_usec = 1000 * ((u_obj->credits.credit_left) % 1000);
 		setitimer(ITIMER_VIRTUAL, &nxt, NULL);
 
 	}
@@ -420,6 +441,7 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 		exit(0);
 	}
 
+	gettimeofday(&(u_new->credits.begin), NULL);
 	u_new->uthread_state = UTHREAD_INIT;
 	u_new->uthread_priority = DEFAULT_UTHREAD_PRIORITY;
 	u_new->uthread_gid = u_gid;
@@ -452,6 +474,12 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	kthread_runq = ksched_find_target(u_new);
 
 	*u_tid = u_new->uthread_tid;
+
+	#if U_DEBUG
+		printf("\nuthread (id:%d) created at %lus %lu\n", u_new->uthread_tid, u_new->credits.begin.tv_sec, 
+				u_new->credits.begin.tv_usec);
+	#endif
+
 	/* Queue the uthread for target-cpu. Let target-cpu take care of initialization. */
 	add_to_runqueue(kthread_runq->active_runq, &(kthread_runq->kthread_runqlock), u_new);
 

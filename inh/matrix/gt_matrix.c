@@ -198,9 +198,7 @@ int main()
 	fprintf(stderr, "********************************");
 	// print_matrix(&B);
 	fprintf(stderr, "********************************");
-	for(inx=0; inx < 4; inx++){
-		print_matrix(&(C[inx]));
-	}
+
 	fprintf(stderr, "********************************");
 	return(0);
 }

@@ -10,7 +10,7 @@ extern long REAL[128];
 
 extern long RUN_TIME[128];
 extern long TOTAL_TIME[128];
-extern struct timeval u_begin[128];
+extern long long u_begin[128];
 
 
 /* uthread states */
