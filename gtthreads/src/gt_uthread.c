@@ -193,8 +193,6 @@ extern void gt_yield()
   	kthread_block_signal(SIGVTALRM);
   	kthread_block_signal(SIGUSR1);
 
-
-
   	kthread_context_t *k_ctx;
   	k_ctx = kthread_cpu_map[kthread_apic_id()];
   	k_ctx->yid = 1;
@@ -246,7 +244,6 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 					#if U_DEBUG
 						printf("%s\n", "uthread is moved");
 					#endif 
-					// rem_from_runqueue(k_ctx->krunqueue.active_runq, &(k_ctx->krunqueue.kthread_runqlock), u_obj);
 					add_to_runqueue(kthread_cpu_map[i]->krunqueue.active_runq, &(kthread_cpu_map[i]
 									->krunqueue.kthread_runqlock), u_obj);
 				}
@@ -290,7 +287,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				
 
 				REAL[u_obj->uthread_tid] = u_obj->credits.used_sec;
-				TAKEN[u_obj->uthread_tid] = u_obj->credits.begin.tv_usec + (u_obj->credits.begin.tv_sec * MILL);
+				// TAKEN[u_obj->uthread_tid] = u_obj->credits.begin.tv_usec + (u_obj->credits.begin.tv_sec * MILL);
 				u_begin[u_obj->uthread_tid] = u_obj->credits.begin.tv_usec + (u_obj->credits.begin.tv_sec * MILL);
 				#if U_DEBUG
 					printf("\nuthread (id:%d) created at %lus %lu\n", u_obj->uthread_tid, 
@@ -353,28 +350,10 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		kthread_init_vtalrm_timeslice();
 	else
 	{
-		nxt.it_value.tv_sec = (100 - u_obj->credits.credit_left) / 1000;
-		nxt.it_value.tv_usec = 1000 * ((100-u_obj->credits.credit_left) % 1000);
+		nxt.it_value.tv_sec = (u_obj->credits.credit_left) / 1000;
+		nxt.it_value.tv_usec = 1000 * ((u_obj->credits.credit_left) % 1000);
 		setitimer(ITIMER_VIRTUAL, &nxt, NULL);
 	}
-
-
-	// if(u_obj->credits.credit_left < KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) //25)
-	// {
-	// 	if(u_obj->credits.credit_left < 25) //KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000) // 25) 
-	// 	{
-	// 		nxt.it_value.tv_sec = 0;
-	// 		nxt.it_value.tv_usec = 50000;
-	// 	} else {
-	// 		nxt.it_value.tv_sec = u_obj->credits.credit_left / 1000;
-	// 		nxt.it_value.tv_usec = 1000 * (u_obj->credits.credit_left % 1000);
-	// 	}
-	// 	setitimer(ITIMER_VIRTUAL, &nxt, NULL);
-	// } else {
-	// 	// printf("AAAAAAAAAAAAAAAA");
-	// 	kthread_init_vtalrm_timeslice();
-	// }
-
 
 	/* Re-install the scheduling signal handlers */
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
