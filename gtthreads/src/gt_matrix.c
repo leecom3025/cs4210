@@ -203,7 +203,7 @@ int main()
 	gettimeofday(&tv1,NULL);
 
 	int mtx;
-	for(mtx=3; mtx > -1; mtx--){
+	for(mtx=0; mtx < 4; mtx++){
 		int per_thread = m_size[mtx] / NUM_THREADS; // 32
 		for(inx=NUM_THREADS - 1; inx > -1; inx--)
 		{
