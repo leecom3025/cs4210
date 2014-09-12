@@ -92,7 +92,7 @@ static void u_update(uthread_struct_t **u, struct timeval curr, struct timeval n
 	u_obj->credits.usec_per_core[kthread_apic_id()] += ncurr.tv_sec * MILL + ncurr.tv_usec;
 	u_obj->credits.credit_left -= ncurr.tv_sec * 1000 + (ncurr.tv_usec/1000);
 
-	#if 1
+	#if U_DEBUG
 		printf("\n%s[%d] %d\n", "Credit left", u_obj->uthread_tid, u_obj->credits.credit_left);
 	#endif
 	*u = u_obj;
@@ -256,7 +256,8 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		{
 			/* XXX: Inserting uthread into zombie queue is causing improper
 			 * cleanup/exit of uthread (core dump) */
-			printf("\nDONE %d, used-sec:\n", u_obj->uthread_tid, u_obj->credits.used_sec);
+
+			
 			uthread_head_t * kthread_zhead = &(kthread_runq->zombie_uthreads);
 			gt_spin_lock(&(kthread_runq->kthread_runqlock));
 			kthread_runq->kthread_runqlock.holder = 0x01;
@@ -268,7 +269,38 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				gt_spin_lock(&ksched_info->ksched_lock);
 				ksched_info->kthread_cur_uthreads--;
 				gt_spin_unlock(&ksched_info->ksched_lock);
+				struct timeval curr;
+				gettimeofday(&curr, NULL);
+
+				if (curr.tv_usec < u_obj->credits.updated.tv_usec){
+					u_obj->credits.updated.tv_usec -= (MILL * ((curr.tv_usec - u_obj->credits.updated.tv_usec)/(MILL+1)));
+					u_obj->credits.updated.tv_sec += ((curr.tv_usec - u_obj->credits.updated.tv_usec)/MILL);
+				}
+
+				if (curr.tv_usec > MILL + u_obj->credits.updated.tv_usec){
+					u_obj->credits.updated.tv_usec += (curr.tv_usec - u_obj->credits.updated.tv_usec);
+					u_obj->credits.updated.tv_sec -= (curr.tv_usec - u_obj->credits.updated.tv_usec);
+				}
+
+				curr.tv_sec -= u_obj->credits.updated.tv_sec;
+				curr.tv_usec -= u_obj->credits.updated.tv_usec;
+
+				// if (u_obj->credits.def_credit == 25 && u_obj->uthread_tid/32 == 0)
+				// 	printf("\nC(25) M(32) id:%d (used: %lld, total:%lld)\n", u_obj->uthread_tid, u_obj->credits.used_sec, 
+				// 		(curr.tv_sec*MILL) + curr.tv_usec);
+
+				// if (u_obj->credits.def_credit == 25 && u_obj->uthread_tid/32 == 3)
+				// 	printf("\nC(25) M(256) id:%d (used: %lld, total:%lld)\n", u_obj->uthread_tid, u_obj->credits.used_sec, 
+				// 		(curr.tv_sec*MILL) + curr.tv_usec);
+				if (u_obj->credits.def_credit == 25 && u_obj->uthread_tid/32 == 3)
+					printf("\nC(25) M(256) id:%d (used: %lld, total:%lld)\n", u_obj->uthread_tid, u_obj->credits.used_sec, 
+						(curr.tv_sec*MILL) + curr.tv_usec);
+
+				if (u_obj->credits.def_credit == 100 && u_obj->uthread_tid/32 == 3)
+					printf("\nC(100) M(256) id:%d (used: %lld, total:%lld)\n", u_obj->uthread_tid, u_obj->credits.used_sec, 
+						(curr.tv_sec*MILL) + curr.tv_usec);
 			}
+
 		}
 		else
 		{
@@ -355,7 +387,7 @@ static void uthread_context_func(int signo)
 
 	kthread_runq = &(kthread_cpu_map[kthread_apic_id()]->krunqueue);
 
-	printf("..... uthread_context_func .....\n");
+	// printf("..... uthread_context_func .....\n");
 	/* kthread->cur_uthread points to newly created uthread */
 	if(!sigsetjmp(kthread_runq->cur_uthread->uthread_env,0))
 	{
@@ -406,6 +438,7 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	u_new->uthread_arg = u_arg;
 	u_new->credits.credit = u_new->credits.credit_left = u_new->credits.def_credit = credits;
 	u_new->credits.usec_per_core = malloc(sizeof(int) * GT_MAX_KTHREADS);
+
 
 	/* Allocate new stack for uthread */
 	u_new->uthread_stack.ss_flags = 0; /* Stack enabled for signal handling */

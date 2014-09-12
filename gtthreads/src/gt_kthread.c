@@ -78,12 +78,12 @@ static int kthread_handler(void *arg)
 {
 #define k_ctx ((kthread_context_t *)arg)
 
-#if 1
+#if U_DEBUG
 	printf("Thread to be scheduled on cpu\n");
 #endif
 	kthread_init(k_ctx);
 
-#if 1
+#if U_DEBUG
 	printf("\nThread (tid : %u, pid : %u,  cpu : %d, cpu-apic-id %d) ready to run !!\n\n", 
 		k_ctx->tid, k_ctx->pid, k_ctx->cpuid, k_ctx->cpu_apic_id);
 #endif
@@ -179,7 +179,7 @@ extern kthread_runqueue_t *ksched_find_target(uthread_struct_t *u_obj)
 	u_obj->cpu_id = kthread_cpu_map[target_cpu]->cpuid;
 	u_obj->last_cpu_id = kthread_cpu_map[target_cpu]->cpuid;
 
-#if 1
+#if U_DEBUG
 	printf("Target uthread (id:%d, group:%d) : cpu(%d)\n", u_obj->uthread_tid, u_obj->uthread_gid, kthread_cpu_map[target_cpu]->cpuid);
 #endif
 
@@ -340,8 +340,9 @@ extern void gtthread_app_init()
 			fprintf(stderr, "kthread creation failed (errno:%d)\n", errno );
 			exit(0);
 		}
-
-		printf( "kthread(%d) created !!\n", inx);
+		#if U_DEBUG
+			printf( "kthread(%d) created !!\n", inx);
+		#endif
 	}
 
 	{

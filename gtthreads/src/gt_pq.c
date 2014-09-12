@@ -214,7 +214,7 @@ extern uthread_struct_t *sched_find_best_uthread(kthread_runqueue_t *kthread_run
 	__rem_from_runqueue(runq, u_obj);
 
 	gt_spin_unlock(&(kthread_runq->kthread_runqlock));
-#if 1
+#if U_DEBUG
 	printf("cpu(%d) : sched best uthread(id:%d, group:%d)\n", u_obj->cpu_id, u_obj->uthread_tid, u_obj->uthread_gid);
 #endif
 	return(u_obj);

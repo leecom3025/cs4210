@@ -114,7 +114,7 @@ static void * uthread_mulmat(void *p)
 
 #ifdef GT_THREADS
 	cpuid = kthread_cpu_map[kthread_apic_id()]->cpuid;
-	fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) started",ptr->tid, ptr->gid, cpuid);
+	// fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) started",ptr->tid, ptr->gid, cpuid);
 #else
 	fprintf(stderr, "\nThread(id:%d, group:%d) started",ptr->tid, ptr->gid);
 #endif
@@ -126,8 +126,8 @@ static void * uthread_mulmat(void *p)
 
 #ifdef GT_THREADS
 	gt_yield();
-	fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) finished (TIME : %lu s and %lu us)",
-			ptr->tid, ptr->gid, cpuid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
+	// fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) finished (TIME : %lu s and %lu us)",
+			// ptr->tid, ptr->gid, cpuid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
 #else
 	gettimeofday(&tv2,NULL);
 	fprintf(stderr, "\nThread(id:%d, group:%d) finished (TIME : %lu s and %lu us)",
@@ -211,8 +211,9 @@ int main()
 			/* Wanted to split the columns by groups !!! */
 			uarg->start_col = (uarg->gid * PER_GROUP_COLS);
 	#endif
-
 			uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, c_size[(inx/8)]);
+			// printf("u_tid: %d, matrix size: %d, credit %d\n",utids[inx], uarg->size,  c_size[(inx/8)]);
+
 		}
 	}
 	gtthread_app_exit();

@@ -18,7 +18,7 @@ typedef struct credit_sch
 	int def_credit;
 	int credit;
 	int credit_left;
-	int used_sec;
+	long used_sec;
 	int sched_time;
 	int *usec_per_core;
 
