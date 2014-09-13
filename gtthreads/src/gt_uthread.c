@@ -285,6 +285,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				ksched_info->kthread_cur_uthreads--;
 				gt_spin_unlock(&ksched_info->ksched_lock);
 				
+				REAL[u_obj->uthread_tid] = u_begin[u_obj->uthread_tid] = 0;
 
 				REAL[u_obj->uthread_tid] = u_obj->credits.used_sec;
 				// TAKEN[u_obj->uthread_tid] = u_obj->credits.begin.tv_usec + (u_obj->credits.begin.tv_sec * MILL);

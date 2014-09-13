@@ -241,37 +241,37 @@ int main()
 	}
 	fprintf(stderr, "********************************\n");
 
-	// for(inx = 0; inx < 16; inx++) {
-	// 	mSize = m_size[inx /4];
-	// 	mCredit = c_size[(inx%4)];
-	// 	printf("(%dx%d, %d) => Real: %lld, Taken:%lld\n", mSize, mSize, mCredit, REAL[inx]/8, TAKEN[inx]/8);
-	// }
-
-	// for(inx = 0; inx < 128; inx++) {
-		// printf("%d. runtime: %ld, total: %ld\n", inx, REAL[inx], wait_time[inx]);
-	// }
-
 	int mSize, mCredit;
-	long long run_time, total_time, avg_run, avg_total;
-	long long std_run[16], std_exe[16];
+	long long run_time, total_time;
+
+	long long avg_run[16], avg_exe[16], std_run[16], std_exe[16];
+
+	for (mSize = 0; mSize < 16; mSize++){
+		avg_run[mSize] = 0;
+		avg_exe[mSize] = 0;
+		std_run[mSize] = 0;
+		std_exe[mSize] = 0;
+	}
+
+
 	for(mSize =0; mSize < 16; mSize++) {
 		run_time = total_time = 0;
 		for(mCredit = 0; mCredit < 8; mCredit++) {
-			run_time += REAL[(mSize*8) + mCredit];
+			run_time += REAL[(mSize*8) + mCredit]; // run
 			total_time += wait_time[(mSize*8) + mCredit];
 			
 			// printf("\n %d Taken: %llu\n", (mSize*8) + mCredit, wait_time[(mSize*8) + mCredit] - u_begin[(mSize*8) + mCredit]);
 		}
 
-		avg_run = run_time/8;
-		avg_total = total_time/8;
-		printf("%d. mean_run: %lld, mean_wait: %lld\n", mSize, run_time/8, total_time/8);
+		avg_run[mSize] = run_time/8;
+		avg_exe[mSize] = total_time/8;
+		// printf("%d. mean_run: %lld, mean_wait: %lld\n", mSize, run_time/8, total_time/8);
 
 		for(mCredit = 0; mCredit < 8; mCredit++) {
-			on_cpu[(mSize*8) + mCredit] = (REAL[(mSize*8) + mCredit] - avg_run) 
-											* (REAL[(mSize*8) + mCredit] - avg_run);
-			on_exe[(mSize*8) + mCredit] = (wait_time[(mSize*8) + mCredit] - avg_total) * 
-											(wait_time[(mSize*8) + mCredit] - avg_total);
+			on_cpu[(mSize*8) + mCredit] = (REAL[(mSize*8) + mCredit] - avg_run[mSize]) 
+											* (REAL[(mSize*8) + mCredit] - avg_run[mSize]);
+			on_exe[(mSize*8) + mCredit] = (wait_time[(mSize*8) + mCredit] - avg_exe[mSize]) * 
+											(wait_time[(mSize*8) + mCredit] - avg_exe[mSize]);
 		}
 
 		for(mCredit = 0; mCredit < 8; mCredit++) {
@@ -286,12 +286,13 @@ int main()
 		std_exe[mSize] = sqrt(std_exe[mSize]);
 	}
 
+	printf("%20s%10s%10s%10s\n", "avg_run", "avg_exe", "std_run", "std_exe");
 	for(mSize = 0; mSize < 16; mSize++) {
 		if (mSize%4 == 0)
 			printf("******************************************************\n");
-		printf("     (%dx%d, %d) => std_run: %lld, std_exe:%lld\n", m_size[mSize/4], m_size[mSize/4],
-							 c_size[mSize%4], std_run[mSize], std_exe[mSize]);
-
+		printf("%5s%1d%s%1d,%1d%s %5lld, %5lld, %5lld, %5lld\n", 
+				"(", m_size[mSize/4], "x", m_size[mSize/4], c_size[mSize%4], ")", avg_run[mSize],
+					avg_exe[mSize], std_run[mSize], std_exe[mSize]);
 	}
 			printf("******************************************************\n");
 
