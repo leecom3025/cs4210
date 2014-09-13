@@ -293,6 +293,7 @@ int main()
 							 c_size[mSize%4], std_run[mSize], std_exe[mSize]);
 
 	}
+			printf("**************************************************\n");
 
 	return(0);
 
