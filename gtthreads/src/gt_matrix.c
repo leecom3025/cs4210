@@ -188,7 +188,8 @@ uthread_arg_t uargs[NUM_THREADS * 4];
 uthread_t utids[NUM_THREADS * 4];
 int m_size[4] = {32, 64, 128, 256};
 int c_size[4] = {25, 50, 75, 100};
-long on_cpu[128];
+long long on_cpu[128]; // std for run time
+long long on_exe[128]; // std for total execution time
 
 int main()
 {
@@ -251,7 +252,8 @@ int main()
 	// }
 
 	int mSize, mCredit;
-	long run_time, total_time;
+	long long run_time, total_time, avg_run, avg_total;
+	long long std_run[16], std_exe[16];
 	for(mSize =0; mSize < 16; mSize++) {
 		run_time = total_time = 0;
 		for(mCredit = 0; mCredit < 8; mCredit++) {
@@ -260,7 +262,35 @@ int main()
 			
 			// printf("\n %d Taken: %llu\n", (mSize*8) + mCredit, wait_time[(mSize*8) + mCredit] - u_begin[(mSize*8) + mCredit]);
 		}
-		printf("%d. runtime: %ld, wait time: %ld\n", mSize, run_time/8, total_time/8);
+
+		avg_run = run_time/8;
+		avg_total = total_time/8;
+		printf("%d. mean_run: %lld, mean_wait: %lld\n", mSize, run_time/8, total_time/8);
+
+		for(mCredit = 0; mCredit < 8; mCredit++) {
+			on_cpu[(mSize*8) + mCredit] = (REAL[(mSize*8) + mCredit] - avg_run) 
+											* (REAL[(mSize*8) + mCredit] - avg_run);
+			on_exe[(mSize*8) + mCredit] = (wait_time[(mSize*8) + mCredit] - avg_total) * 
+											(wait_time[(mSize*8) + mCredit] - avg_total);
+		}
+
+		for(mCredit = 0; mCredit < 8; mCredit++) {
+			std_run[mSize] += on_cpu[(mSize*8) + mCredit];
+			std_exe[mSize] += on_exe[(mSize*8) + mCredit];
+		}
+
+		std_run[mSize] /= 8;
+		std_exe[mSize] /= 8;
+
+		std_run[mSize] = sqrt(std_run[mSize]);
+		std_exe[mSize] = sqrt(std_exe[mSize]);
+	}
+
+	for(mSize = 0; mSize < 16; mSize++) {
+		if (mSize%4 == 0)
+			printf("**************************************************\n");
+		printf("(%dx%d, %d) => std_run: %lld, std_exe:%lld\n", m_size[mSize/4], m_size[mSize/4],
+							 c_size[mSize%4], std_run[mSize], std_exe[mSize]);
 
 	}
 
