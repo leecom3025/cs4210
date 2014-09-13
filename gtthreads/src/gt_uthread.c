@@ -427,6 +427,7 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	u_new->uthread_func = u_func;
 	u_new->uthread_arg = u_arg;
 	u_new->credits.credit = u_new->credits.credit_left = u_new->credits.def_credit = credits;
+	u_new->credits.used_sec = 0;
 	u_new->credits.usec_per_core = malloc(sizeof(int) * GT_MAX_KTHREADS);
 
 

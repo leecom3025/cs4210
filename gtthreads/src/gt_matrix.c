@@ -224,8 +224,6 @@ int main()
 			uarg->start_col = (uarg->gid * PER_GROUP_COLS);
 	#endif
 			uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, c_size[(inx/8)]);
-			// printf("u_tid: %d, matrix size: %d, credit %d\n",utids[inx], uarg->size,  c_size[(inx/8)]);
-
 		}
 	}
 	gtthread_app_exit();
@@ -259,13 +257,10 @@ int main()
 		for(mCredit = 0; mCredit < 8; mCredit++) {
 			run_time += REAL[(mSize*8) + mCredit]; // run
 			total_time += wait_time[(mSize*8) + mCredit];
-			
-			// printf("\n %d Taken: %llu\n", (mSize*8) + mCredit, wait_time[(mSize*8) + mCredit] - u_begin[(mSize*8) + mCredit]);
 		}
 
 		avg_run[mSize] = run_time/8;
 		avg_exe[mSize] = total_time/8;
-		// printf("%d. mean_run: %lld, mean_wait: %lld\n", mSize, run_time/8, total_time/8);
 
 		for(mCredit = 0; mCredit < 8; mCredit++) {
 			on_cpu[(mSize*8) + mCredit] = (REAL[(mSize*8) + mCredit] - avg_run[mSize]) 
@@ -286,15 +281,15 @@ int main()
 		std_exe[mSize] = sqrt(std_exe[mSize]);
 	}
 
-	printf("%20s%10s%10s%10s\n", "avg_run", "avg_exe", "std_run", "std_exe");
+	printf("%27s%12s%12s%10s\n", "avg_run", "avg_exe", "std_run", "std_exe");
 	for(mSize = 0; mSize < 16; mSize++) {
 		if (mSize%4 == 0)
-			printf("******************************************************\n");
-		printf("%5s%1d%s%1d,%1d%s %5lld, %5lld, %5lld, %5lld\n", 
-				"(", m_size[mSize/4], "x", m_size[mSize/4], c_size[mSize%4], ")", avg_run[mSize],
-					avg_exe[mSize], std_run[mSize], std_exe[mSize]);
+			printf("***************************************************************\n");
+		printf("%s%3d%s%3d %5d%s %10lld %10lld %10lld %10lld\n", 
+			"(", m_size[mSize/4], "x", m_size[mSize/4], c_size[mSize%4], ")",
+			avg_run[mSize], avg_exe[mSize], std_run[mSize], std_exe[mSize]);
 	}
-			printf("******************************************************\n");
+			printf("***************************************************************\n");
 
 	return(0);
 
