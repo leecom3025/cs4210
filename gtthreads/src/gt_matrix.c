@@ -138,12 +138,7 @@ static void * uthread_mulmat(void *p)
 	fprintf(stderr, "\nThread(id:%d, group:%d) finished (TIME : %lu s and %lu us)",
 			ptr->tid, ptr->gid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
 #endif
-	// wait_time[ptr->tid] = ((tv2.tv_sec * 1000000) + tv2.tv_usec) - TAKEN[ptr->tid];
-	// wait_time[ptr->tid] = ((tv2.tv_sec - u_begin[ptr->tid].tv_sec) * 1000000) + (tv2.tv_usec - u_begin[ptr->tid].tv_usec); 
-	// wait_time[ptr->tid] = ((u_begin[ptr->tid].tv_sec) * 1000000) + (u_begin[ptr->tid].tv_usec); 
-
 	wait_time[ptr->tid] = (((tv2.tv_sec - tv1.tv_sec)*1000000) + (tv2.tv_usec - tv1.tv_usec)) - REAL[ptr->tid];
-	// wait_time[ptr->tid] = (tv2.tv_sec * 1000000) + (tv2.tv_usec);
 #undef ptr
 	return 0;
 }
@@ -161,27 +156,9 @@ static void init_matrices()
 	return;
 }
 
-long sum (long *array, int start, int end)
+static int usage() 
 {
-	int i;
-	long sum_value = 0;
-	for(i = start; i<end; i++)
-	sum_value += array[i];
-
-	return sum_value;
-}
-		
-float standard_deviation(long *array, int start, int end, float mean)
-{
-	int i;
-	long sd = 0;
-	long temp = 0;
-	for(i=start; i<end; i++)
-		temp += (array[i] - mean)*(array[i] - mean);
-
-	sd = (float) sqrt(temp/32);
-
-	return sd;
+	printf("USAGE: bin/matrix [1: credit, 2: pq]\n");
 }
 
 uthread_arg_t uargs[NUM_THREADS * 4];
@@ -191,8 +168,22 @@ int c_size[4] = {25, 50, 75, 100};
 long long on_cpu[128]; // std for run time
 long long on_exe[128]; // std for total execution time
 
-int main()
+int main( int argc, char * argv [] ) 
 {
+	int choose;
+	if (argc != 2) {
+		printf("%d\n", argc);
+		usage();
+		return 0;
+	}
+
+	choose = atoi(argv[1]);
+
+	if (choose > 2 || choose < 1) {
+		usage();
+		return 0;
+	}
+
 	uthread_arg_t *uarg;
 	int inx;
 
@@ -215,7 +206,7 @@ int main()
 
 			uarg->tid = (mtx*NUM_THREADS) + inx;
 
-			uarg->gid = mtx; // (inx % NUM_GROUPS);
+			uarg->gid = mtx; 
 
 			uarg->start_row = (inx * per_thread);
 			uarg->size = m_size[mtx];
@@ -223,7 +214,11 @@ int main()
 			/* Wanted to split the columns by groups !!! */
 			uarg->start_col = (uarg->gid * PER_GROUP_COLS);
 	#endif
-			uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, c_size[(inx/8)]);
+			if (choose == 1) // credit
+				uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, c_size[(inx/8)]);
+			else // pq
+				uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid, 100);
+
 		}
 	}
 	gtthread_app_exit();
@@ -281,7 +276,7 @@ int main()
 		std_exe[mSize] = sqrt(std_exe[mSize]);
 	}
 
-	printf("%27s%12s%12s%10s\n", "avg_run", "avg_exe", "std_run", "std_exe");
+	printf("%s%12s%12s%12s%10s\n", " matrix  credit", "avg_run", "avg_exe", "std_run", "std_exe");
 	for(mSize = 0; mSize < 16; mSize++) {
 		if (mSize%4 == 0)
 			printf("***************************************************************\n");
@@ -291,7 +286,7 @@ int main()
 	}
 			printf("***************************************************************\n");
 
-	return(0);
+	return 0;
 
 
 }
