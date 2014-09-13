@@ -288,12 +288,12 @@ int main()
 
 	for(mSize = 0; mSize < 16; mSize++) {
 		if (mSize%4 == 0)
-			printf("**************************************************\n");
+			printf("******************************************************\n");
 		printf("     (%dx%d, %d) => std_run: %lld, std_exe:%lld\n", m_size[mSize/4], m_size[mSize/4],
 							 c_size[mSize%4], std_run[mSize], std_exe[mSize]);
 
 	}
-			printf("**************************************************\n");
+			printf("******************************************************\n");
 
 	return(0);
 
