@@ -53,6 +53,7 @@ typedef struct __uthread_arg
 	int start_col; /* start_col -> (start_col + PER_GROUP_COLS) */
 	
 	int size;
+	int end_row;
 }uthread_arg_t;
 	
 struct timeval tv1;
@@ -78,13 +79,35 @@ static void print_matrix(matrix_t *mat)
 	int i, j;
 
 	printf ("\nMATRIX %d \n", mat->m[0][0]);
-#if 0
+#if 1
 	for(i=0;i<SIZE;i++)
 	{
-		for(j=0;j<SIZE;j++)
+		for(j=0;j<SIZE;j++) 
 			printf(" %d ",mat->m[i][j]);
 		printf("\n");
 	}
+#endif 
+	return;
+}
+
+static void print_matrix_by_size(matrix_t *mat, int size)
+{
+	int i, j, count = 0;
+
+	printf ("\nMATRIX %d \n", mat->m[0][0]);
+#if 1
+	for(i=0;i<size;i++)
+	{
+		for(j=0;j<size;j++) {
+			if (mat->m[i][j] == size)
+				count++;
+			// printf(" %d ",mat->m[i][j]);
+		}
+		// printf("\n");
+	}
+
+	if (count == (size*size))
+		printf("%d%s%d has correct value\n", size, "x", size);
 #endif 
 	return;
 }
@@ -104,7 +127,7 @@ static void * uthread_mulmat(void *p)
 	i=0; j= 0; k=0;
 
 	start_row = ptr->start_row;
-	end_row = (ptr->start_row + PER_THREAD_ROWS);
+	end_row = ptr->end_row; //(ptr->start_row + PER_THREAD_ROWS);
 
 	size = ptr->size;
 #ifdef GT_GROUP_SPLIT
@@ -112,7 +135,7 @@ static void * uthread_mulmat(void *p)
 	end_col = (ptr->start_col + PER_THREAD_ROWS);
 #else
 	start_col = 0;
-	end_col = SIZE;
+	end_col = size;
 #endif
 
 #ifdef GT_THREADS
@@ -209,6 +232,7 @@ int main( int argc, char * argv [] )
 			uarg->gid = mtx; 
 
 			uarg->start_row = (inx * per_thread);
+			uarg->end_row = (inx * per_thread) + per_thread;
 			uarg->size = m_size[mtx];
 	#ifdef GT_GROUP_SPLIT
 			/* Wanted to split the columns by groups !!! */
@@ -230,9 +254,10 @@ int main( int argc, char * argv [] )
 	// print_matrix(&B);
 	fprintf(stderr, "********************************");
 	for(inx=0; inx < 4; inx++){
-		print_matrix(&(C[inx]));
+		print_matrix_by_size(&(C[inx]), m_size[inx]);
 	}
 	fprintf(stderr, "********************************\n");
+
 
 	int mSize, mCredit;
 	long long run_time, total_time;
@@ -278,12 +303,12 @@ int main( int argc, char * argv [] )
 	printf("%s%12s%12s%11s%11s\n", " matrix  credit", "avg_run", "avg_wait", "std_run", "std_wait");
 	for(mSize = 0; mSize < 16; mSize++) {
 		if (mSize%4 == 0)
-			printf("***************************************************************\n");
+			printf("===============================================================\n");
 		printf("%s%3d%s%3d %5d%s %10lld %10lld %10lld %10lld\n", 
 			"(", m_size[mSize/4], "x", m_size[mSize/4], c_size[mSize%4], ")",
 			avg_run[mSize], avg_exe[mSize], std_run[mSize], std_exe[mSize]);
 	}
-			printf("***************************************************************\n");
+	printf("===============================================================\n");
 
 	return 0;
 

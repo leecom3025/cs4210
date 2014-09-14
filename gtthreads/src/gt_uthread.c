@@ -224,7 +224,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		}
 	}
 
-	if(k_ctx->yid) 
+	if(k_ctx->yid)  // for preemption
 	{
 		#if U_DEBUG
 			printf("\n%s\n", "yielded");
