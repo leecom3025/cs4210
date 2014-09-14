@@ -45,33 +45,7 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 /** DEFNITIONS **/
 
 
-static void calculate(uthread_struct_t **u)
-{
-	uthread_struct_t *u_obj = *u;
-	struct timeval curr, ncurr, up;
 
-	up = ((&u_obj->credits)->updated);
-	gettimeofday(&curr, NULL);
-
-	#if U_DEBUG
-		printf("%s %d\n", "u_obj before:", u_obj->credits.used_sec);
-	#endif	
-	
-	u_obj->credits.used_sec += ((curr.tv_sec * MILL) + curr.tv_usec) - ((up.tv_sec * MILL) + up.tv_usec);
-
-	#if U_DEBUG
-		printf("%s %d\n", "u_obj after: ", u_obj->credits.used_sec);
-	#endif
-
-	long long t = (((curr.tv_sec * MILL) + curr.tv_usec) - ((up.tv_sec * MILL) + up.tv_usec))/1000;
-	u_obj->credits.credit_left -= t;
-
-	#if U_DEBUG
-		printf("\n%s[%d] %d decreased by %lu\n", "Credit left", u_obj->uthread_tid, u_obj->credits.credit_left, fuck);
-	#endif
-
-	*u = u_obj;
-}
 
 /**********************************************************************/
 /* uthread scheduling */
@@ -184,6 +158,33 @@ extern void gt_yield()
   	kthread_unblock_signal(SIGUSR1);
 }
 
+static void calculate(uthread_struct_t **u)
+{
+	uthread_struct_t *u_obj = *u;
+	struct timeval curr, ncurr, up;
+
+	up = ((&u_obj->credits)->updated);
+	gettimeofday(&curr, NULL);
+
+	#if U_DEBUG
+		printf("%s %d\n", "u_obj before:", u_obj->credits.used_sec);
+	#endif	
+	
+	u_obj->credits.used_sec += ((curr.tv_sec * MILL) + curr.tv_usec) - ((up.tv_sec * MILL) + up.tv_usec);
+
+	#if U_DEBUG
+		printf("%s %d\n", "u_obj after: ", u_obj->credits.used_sec);
+	#endif
+
+	long long t = (((curr.tv_sec * MILL) + curr.tv_usec) - ((up.tv_sec * MILL) + up.tv_usec))/1000;
+	u_obj->credits.credit_left -= t;
+
+	#if U_DEBUG
+		printf("\n%s[%d] %d decreased by %lu\n", "Credit left", u_obj->uthread_tid, u_obj->credits.credit_left, t);
+	#endif
+
+	*u = u_obj;
+}
 
 extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kthread_runqueue_t *))
 {
