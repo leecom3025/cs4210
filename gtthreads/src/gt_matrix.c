@@ -129,7 +129,7 @@ static void * uthread_mulmat(void *p)
 	gettimeofday(&tv2,NULL);
 
 #ifdef GT_THREADS
-	// gt_yield(); // this one shouldn't be matter
+	gt_yield(); // this one shouldn't be matter
 	// fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) finished (TIME : %lu s and %lu us)",
 			// ptr->tid, ptr->gid, cpuid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
 
@@ -196,7 +196,7 @@ int main( int argc, char * argv [] )
 
 	int mtx;
 	for(mtx=0; mtx < 4; mtx++){
-		int per_thread = m_size[mtx] / NUM_THREADS; // 32
+		int per_thread = m_size[mtx] / NUM_THREADS;
 		for(inx=NUM_THREADS - 1; inx > -1; inx--)
 		{
 			uarg = &uargs[(mtx*NUM_THREADS) + inx];
@@ -246,7 +246,6 @@ int main( int argc, char * argv [] )
 		std_exe[mSize] = 0;
 	}
 
-
 	for(mSize =0; mSize < 16; mSize++) {
 		run_time = total_time = 0;
 		for(mCredit = 0; mCredit < 8; mCredit++) {
@@ -276,7 +275,7 @@ int main( int argc, char * argv [] )
 		std_exe[mSize] = sqrt(std_exe[mSize]);
 	}
 
-	printf("%s%12s%12s%12s%10s\n", " matrix  credit", "avg_run", "avg_exe", "std_run", "std_exe");
+	printf("%s%12s%12s%11s%11s\n", " matrix  credit", "avg_run", "avg_wait", "std_run", "std_wait");
 	for(mSize = 0; mSize < 16; mSize++) {
 		if (mSize%4 == 0)
 			printf("***************************************************************\n");

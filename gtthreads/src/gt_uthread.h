@@ -5,11 +5,7 @@
 
 typedef unsigned int uthread_t;
 typedef unsigned int uthread_group_t;
-extern long TAKEN[128];
-extern long REAL[128];
-
-extern long RUN_TIME[128];
-extern long TOTAL_TIME[128];
+extern long long REAL[128];
 extern long long u_begin[128];
 
 
@@ -22,16 +18,12 @@ extern long long u_begin[128];
 
 typedef struct credit_sch 
 {
-	int def_credit;
-	int credit;
-	int credit_left;
-	long used_sec;
-	int sched_time;
-	int *usec_per_core;
+	int def_credit; // default credit assigned
+	int credit_left; // credit left 
+	long long used_sec; // used micro seconds
 
 	struct timeval begin; // start
 	struct timeval updated; //last_updated
-
 } credit_sch_t;
 
 /* uthread struct : has all the uthread context info */

@@ -19,12 +19,7 @@
 /**********************************************************************/
 extern void gt_yield();
 static void calcuate(uthread_struct_t **u_obj);
-static void u_update(uthread_struct_t **u_obj, struct timeval curr, struct timeval ncurr, struct timeval up);
-long REAL[128];
-long TAKEN[128];
-long RUN_TIME[128];
-long TOTAL_TIME[128];
-
+long long REAL[128];
 long long u_begin[128];
 
 #define MILL 1000000
@@ -49,12 +44,6 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 /**********************************************************************/
 /** DEFNITIONS **/
 
-static void u_update(uthread_struct_t **u, struct timeval curr, struct timeval ncurr, struct timeval up)
-{
-	uthread_struct_t *u_obj = *u;
-
-	*u = u_obj;
-}
 
 static void calculate(uthread_struct_t **u)
 {
@@ -63,8 +52,6 @@ static void calculate(uthread_struct_t **u)
 
 	up = ((&u_obj->credits)->updated);
 	gettimeofday(&curr, NULL);
-
-	// printf("Curr: %lld \n", ((curr.tv_sec * MILL) + curr.tv_usec) - ((up.tv_sec * MILL) + up.tv_usec));
 
 	#if U_DEBUG
 		printf("%s %d\n", "u_obj before:", u_obj->credits.used_sec);
@@ -76,9 +63,8 @@ static void calculate(uthread_struct_t **u)
 		printf("%s %d\n", "u_obj after: ", u_obj->credits.used_sec);
 	#endif
 
-	// u_obj->credits.usec_per_core[kthread_apic_id()] += ncurr.tv_sec * MILL + ncurr.tv_usec;
-	unsigned long fuck = (((curr.tv_sec * MILL) + curr.tv_usec) - ((up.tv_sec * MILL) + up.tv_usec))/1000;
-	u_obj->credits.credit_left -= fuck;
+	long long t = (((curr.tv_sec * MILL) + curr.tv_usec) - ((up.tv_sec * MILL) + up.tv_usec))/1000;
+	u_obj->credits.credit_left -= t;
 
 	#if U_DEBUG
 		printf("\n%s[%d] %d decreased by %lu\n", "Credit left", u_obj->uthread_tid, u_obj->credits.credit_left, fuck);
@@ -176,19 +162,6 @@ extern void gt_yield()
 #if U_DEBUG
 	printf("\ngt_yield(%d) is called!\n", kthread_apic_id());
 #endif	
-// uthread_struct_t *cur_uthread;
-//   kthread_runqueue_t *kthread_runq;
-
-//   // Get the kthread runqueue on which this thread is running.
-//   kthread_runq = &(kthread_cpu_map[kthread_apic_id()]->krunqueue);
-
-//   // Get the thread object of the thread that is calling this function.
-//   cur_uthread = kthread_runq->cur_uthread;
-//   assert(cur_uthread->uthread_state == UTHREAD_RUNNING);
-
-//   // Set state to UTHREAD_YIELD
-//   cur_uthread->uthread_state = UTHREAD_YIELD;
-//   uthread_schedule(&sched_find_best_uthread);
 
   	kthread_block_signal(SIGVTALRM);
   	kthread_block_signal(SIGUSR1);
@@ -253,7 +226,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 
 	if(k_ctx->yid) 
 	{
-		#if 1
+		#if U_DEBUG
 			printf("\n%s\n", "yielded");
 		#endif
 		k_ctx->yid = 0;
@@ -286,9 +259,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				gt_spin_unlock(&ksched_info->ksched_lock);
 				
 				REAL[u_obj->uthread_tid] = u_begin[u_obj->uthread_tid] = 0;
-
 				REAL[u_obj->uthread_tid] = u_obj->credits.used_sec;
-				// TAKEN[u_obj->uthread_tid] = u_obj->credits.begin.tv_usec + (u_obj->credits.begin.tv_sec * MILL);
 				u_begin[u_obj->uthread_tid] = u_obj->credits.begin.tv_usec + (u_obj->credits.begin.tv_sec * MILL);
 				#if U_DEBUG
 					printf("\nuthread (id:%d) created at %lus %lu\n", u_obj->uthread_tid, 
@@ -297,15 +268,13 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				#endif
 			}
 
-		// }else if (u_obj->uthread_state & u_obj->) {
-
 		}else{
 			/* XXX: Apply uthread_group_penalty before insertion */
 			u_obj->uthread_state = UTHREAD_RUNNABLE;
 
 			if (u_obj->credits.credit_left < 1) 
 			{
-				u_obj->credits.credit_left = u_obj->credits.credit;
+				u_obj->credits.credit_left = u_obj->credits.def_credit;
 				add_to_runqueue(kthread_runq->expires_runq, &(kthread_runq->kthread_runqlock), u_obj);
 			} else {
 				add_to_runqueue(kthread_runq->active_runq, &(kthread_runq->kthread_runqlock), u_obj);
@@ -338,14 +307,10 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	}
 
 	u_obj->uthread_state = UTHREAD_RUNNING;
-	u_obj->credits.sched_time += 1;
 
 	struct itimerval curr, nxt;
 	getitimer(ITIMER_VIRTUAL, &curr);
 	gettimeofday(&(u_obj->credits.updated), NULL);
-
-	// printf("\nThread(id:%d, credit left: %d, default: %d)\n", u_obj->uthread_tid, u_obj->credits.credit_left, u_obj->credits.def_credit);
-	// printf("\nKTHREAD %ld", KTHREAD_VTALRM_SEC * 1000 + KTHREAD_VTALRM_USEC/1000);
 
 	if(u_obj->credits.credit_left == u_obj->credits.def_credit)
 		kthread_init_vtalrm_timeslice();
@@ -426,10 +391,8 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	u_new->uthread_gid = u_gid;
 	u_new->uthread_func = u_func;
 	u_new->uthread_arg = u_arg;
-	u_new->credits.credit = u_new->credits.credit_left = u_new->credits.def_credit = credits;
+	u_new->credits.credit_left = u_new->credits.def_credit = credits;
 	u_new->credits.used_sec = 0;
-	u_new->credits.usec_per_core = malloc(sizeof(int) * GT_MAX_KTHREADS);
-
 
 	/* Allocate new stack for uthread */
 	u_new->uthread_stack.ss_flags = 0; /* Stack enabled for signal handling */
